@@ -7,7 +7,7 @@ name = "porto"
 minify = true
 keep_vars = true
 workers_dev = true
-compatibility_date = "2024-12-30"
+compatibility_date = "2025-02-07"
 compatibility_flags = ["nodejs_compat", "nodejs_als"]
 
 [observability]
