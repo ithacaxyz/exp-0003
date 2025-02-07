@@ -1,0 +1,22 @@
+{
+  "name": "exp-0003",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "pnpm --filter='*' dev",
+    "build": "pnpm --filter='*' build",
+    "format": "biome format --write .",
+    "lint": "biome lint --write .",
+    "check": "biome check --write .",
+    "typecheck": "pnpm --filter='*' typecheck"
+  },
+  "devDependencies": {
+    "tsx": "^4.19.2",
+    "@biomejs/biome": "^1.9.4",
+    "@types/node": "catalog:",
+    "typescript": "catalog:",
+    "wrangler": "catalog:"
+  },
+  "packageManager": "pnpm@9.14.2",
+  "license": "MIT"
+}

@@ -1,0 +1,13 @@
+packages:
+  - 'client'
+  - 'server'
+
+catalog:
+  ox: "^0.6.9"
+  viem: "^2.22.23"
+  wagmi: "^2.14.10"
+  porto: "^0.0.11"
+  "@wagmi/core": "^2.16.3"
+  wrangler: "^3.107.3"
+  typescript: "^5.7.3"
+  '@types/node': "^22.13.1"
