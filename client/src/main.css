@@ -1,0 +1,16 @@
+:root {
+  color-scheme: light dark;
+  background-color: #111111;
+  color: rgba(255, 255, 255, 0.87);
+}
+
+body {
+  font-family: monospace;
+}
+
+@media (prefers-color-scheme: light) {
+  :root {
+    background-color: #f8f8f8;
+    color: #181818;
+  }
+}
