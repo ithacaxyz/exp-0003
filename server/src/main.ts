@@ -1,14 +1,17 @@
 import { Hono } from 'hono'
+import { getConnInfo } from 'hono/cloudflare-workers'
 import { cors } from 'hono/cors'
 import { showRoutes } from 'hono/dev'
+import { logger } from 'hono/logger'
 import { prettyJSON } from 'hono/pretty-json'
-import { Address, Json, P256, PublicKey, type RpcSchema, Signature } from 'ox'
+import { Address, Json, P256, PublicKey, type RpcSchema } from 'ox'
 import type { RpcSchema as RpcSchema_porto } from 'porto'
 import { actions, buildActionCall } from './calls.ts'
 import { scheduledTask } from './scheduled.ts'
 
 const app = new Hono<{ Bindings: Env }>()
 
+app.use(logger())
 app.use(prettyJSON({ space: 2 }))
 app.use(
   '*',
@@ -27,6 +30,8 @@ app.onError((error, context) => {
  * If `address` is provided, returns the value of the key, otherwise list all keys
  */
 app.get('/debug', async (context) => {
+  showRoutes(app, { verbose: true, colorize: true })
+  const { remote } = getConnInfo(context)
   const address = context.req.query('address')
   if (!address) {
     const keys = await context.env.KEYS_01.list()
@@ -39,6 +44,7 @@ app.get('/debug', async (context) => {
       transactions: transactions?.results,
       schedules: schedules?.results,
       keys,
+      remote,
     })
   }
 
@@ -59,17 +65,19 @@ app.get('/debug', async (context) => {
     transactions: transactions?.results,
     schedules: schedules?.results,
     key: Json.parse(key),
+    remote,
   })
 })
+
+type Permissions = RpcSchema.ExtractParams<
+  RpcSchema_porto.Schema,
+  'experimental_grantPermissions'
+>[number]['permissions']
 
 /**
  * Creates new keys
  */
 app.post('/keys', async (context) => {
-  type Permissions = RpcSchema.ExtractParams<
-    RpcSchema_porto.Schema,
-    'experimental_grantPermissions'
-  >[0]['permissions']
   const payload = await context.req.json<{
     address: Address.Address
     permissions: Permissions
@@ -148,8 +156,6 @@ app.post('/schedule', async (context) => {
 
   return context.json(insertSchedule)
 })
-
-showRoutes(app)
 
 export default {
   fetch: app.fetch,

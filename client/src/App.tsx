@@ -12,32 +12,24 @@ const APP_SERVER_URL = window.location.hostname.includes('localhost')
   ? 'http://localhost:6900'
   : 'https://offline-server-example.evm.workers.dev'
 
-const permissions = {
-  expiry: Math.floor(Date.now() / 1_000) + 60 * 60, // 1 hour
-  permissions: {
-    calls: [
-      {
-        signature: 'mint(address,uint256)',
-        to: ExperimentERC20.address,
-      },
-      {
-        signature: 'approve(address,uint256)',
-        to: ExperimentERC20.address,
-      },
-      {
-        signature: 'transfer(address,uint256)',
-        to: ExperimentERC20.address,
-      },
-    ],
-    spend: [
-      {
-        limit: Hex.fromNumber(Value.fromEther('1000')),
-        period: 'minute',
-        token: ExperimentERC20.address,
-      },
-    ],
-  },
-} as const
+const permissions = () =>
+  ({
+    expiry: Math.floor(Date.now() / 1000) + 60 * 60, // 1 hour
+    permissions: {
+      calls: [
+        { signature: 'mint(address,uint256)', to: ExperimentERC20.address },
+        { signature: 'approve(address,uint256)', to: ExperimentERC20.address },
+        { signature: 'transfer(address,uint256)', to: ExperimentERC20.address },
+      ],
+      spend: [
+        {
+          period: 'minute',
+          token: ExperimentERC20.address,
+          limit: Hex.fromNumber(Value.fromEther('50')),
+        },
+      ],
+    },
+  }) as const
 
 export function App() {
   useClearLocalStorage()
@@ -142,14 +134,15 @@ function Connect() {
       {connectors
         .filter((x) => x.id === 'xyz.ithaca.porto')
         ?.map((connector) => (
-          <div key={connector.uid}>
+          <div key={connector.uid} style={{ display: 'flex', gap: '10px' }}>
             <button
               key={connector.uid}
-              style={{ marginRight: '10px' }}
               onClick={() =>
                 connect.mutate({
                   connector,
-                  grantPermissions: grantPermissions ? permissions : undefined,
+                  grantPermissions: grantPermissions
+                    ? permissions()
+                    : undefined,
                 })
               }
               type="button"
@@ -166,7 +159,7 @@ function Connect() {
                     connector,
                     createAccount: { label },
                     grantPermissions: grantPermissions
-                      ? permissions
+                      ? permissions()
                       : undefined,
                   }),
                 )
@@ -174,6 +167,18 @@ function Connect() {
               type="button"
             >
               Register
+            </button>
+            <button
+              onClick={async () => {
+                Promise.all(
+                  connectors.map((connector) => {
+                    disconnect.mutate({ connector })
+                  }),
+                )
+              }}
+              type="button"
+            >
+              Disconnect
             </button>
           </div>
         ))}
@@ -221,6 +226,7 @@ function RequestKey() {
             }),
           })
           const result = await Json.parse(await response.text())
+          console.info(Json.stringify(result, undefined, 2))
           wagmiConfig.storage?.setItem('keys', Json.stringify(result))
           setResult(result)
           refetch()
@@ -262,8 +268,6 @@ function AuthorizeServerKey() {
           const [account] = await porto.provider.request({
             method: 'eth_accounts',
           })
-          console.info('address', address)
-          console.info('account', account)
           grantPermissions.mutate(serverKeys)
         }}
       >

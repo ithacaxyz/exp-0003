@@ -5,6 +5,7 @@
   "scripts": {
     "dev": "pnpm --filter='*' dev",
     "build": "pnpm --filter='*' build",
+    "deploy": "pnpm --filter='*' deploy",
     "format": "biome format --write .",
     "lint": "biome lint --write .",
     "check": "biome check --write .",
