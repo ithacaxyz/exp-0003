@@ -1,5 +1,7 @@
 # EXP-0003: App Sessions feat. Permissions
 
+![Cover](./.github/cover.png)
+
 [Read the Blog Post](https://www.ithaca.xyz/writings/exp-0003)
 
 ## Overview
