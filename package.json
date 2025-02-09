@@ -12,12 +12,12 @@
     "typecheck": "pnpm --filter='*' typecheck"
   },
   "devDependencies": {
-    "tsx": "^4.19.2",
     "@biomejs/biome": "^1.9.4",
     "@types/node": "catalog:",
+    "tsx": "^4.19.2",
     "typescript": "catalog:",
     "wrangler": "catalog:"
   },
-  "packageManager": "pnpm@9.14.2",
+  "packageManager": "pnpm@10.2.1",
   "license": "MIT"
 }

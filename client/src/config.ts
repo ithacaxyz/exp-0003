@@ -5,7 +5,7 @@ import { odysseyTestnet } from 'wagmi/chains'
 
 export const porto = Porto.create({
   implementation: Implementation.dialog({
-    host: `https://exp.porto.sh/dialog`,
+    host: import.meta.env.VITE_DIALOG_HOST ?? `https://exp.porto.sh/dialog`,
   }),
 })
 

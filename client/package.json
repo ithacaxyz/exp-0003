@@ -3,7 +3,7 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "dev": "vite --port 6901",
+    "dev": "vite --port 6901 --open",
     "build": "vite build",
     "deploy": "vite build && wrangler --config='wrangler.toml' deploy",
     "typecheck": "tsc --noEmit --project tsconfig.json"
@@ -19,6 +19,7 @@
   },
   "devDependencies": {
     "@tanstack/react-query-devtools": "^5.66.0",
+    "@types/node": "catalog:",
     "@types/react": "^19.0.8",
     "@types/react-dom": "^19.0.3",
     "@vitejs/plugin-react": "^4.3.4",
@@ -26,7 +27,6 @@
     "prool": "^0.0.17",
     "typed-query-selector": "^2.12.0",
     "typescript": "catalog:",
-    "@types/node": "catalog:",
     "vite": "^6.1.0"
   }
 }

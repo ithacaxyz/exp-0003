@@ -35,42 +35,31 @@ export function App() {
   useClearLocalStorage()
 
   return (
-    <>
+    <main>
       <DebugLink />
-      <main>
-        <details>
-          <summary style={{ fontSize: '1.25rem' }}>State</summary>
-          <State />
-          <GetCapabilities />
-        </details>
-        <details>
-          <summary style={{ fontSize: '1.25rem', marginTop: '1rem' }}>
-            Events
-          </summary>
-          <Events />
-        </details>
-        <div>
-          <hr />
-        </div>
-        <Connect />
-        <div>
-          <hr />
-        </div>
-        <RequestKey />
-        <div>
-          <hr />
-        </div>
-        <AuthorizeServerKey />
-        <div>
-          <hr />
-        </div>
-        <Mint />
-        <div>
-          <hr />
-        </div>
-        <DemoCron />
-      </main>
-    </>
+      <hr className="h-px my-8 bg-gray-200 border-0 dark:bg-gray-700" />
+      <details>
+        <summary style={{ fontSize: '1.25rem' }}>State</summary>
+        <State />
+        <GetCapabilities />
+      </details>
+      <details>
+        <summary style={{ fontSize: '1.25rem', marginTop: '1rem' }}>
+          Events
+        </summary>
+        <Events />
+      </details>
+      <hr />
+      <Connect />
+      <hr />
+      <RequestKey />
+      <hr />
+      <AuthorizeServerKey />
+      <hr />
+      <Mint />
+      <hr />
+      <DemoCron />
+    </main>
   )
 }
 

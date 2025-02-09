@@ -4,8 +4,53 @@
   color: rgba(255, 255, 255, 0.87);
 }
 
-body {
+*,
+*::before,
+*::after {
+  scrollbar-width: none;
+  box-sizing: border-box;
+}
+
+html,
+body,
+#root {
+  margin: 0;
+  padding: 0;
+  width: 100%;
+  height: 100%;
+  min-width: 100%;
+  min-height: 100%;
   font-family: monospace;
+}
+
+main > *:not(hr) {
+  padding: 0.3em 1.25em;
+}
+
+header {
+  gap: 2rem;
+  width: 100%;
+  margin: auto;
+  padding: 0.5em;
+  & > h1 {
+    margin: 0;
+    font-size: 3rem;
+    text-align: center;
+  }
+  & > h3 {
+    margin: 0;
+    font-size: 1.5rem;
+    text-align: center;
+  }
+}
+
+hr {
+  border-color: hsla(0, 0%, 98%, 0.525);
+}
+
+*::selection {
+  color: hsl(0, 0%, 0%);
+  background-color: hsl(290, 100%, 90%);
 }
 
 @media (prefers-color-scheme: light) {
