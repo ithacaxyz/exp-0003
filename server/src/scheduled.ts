@@ -10,7 +10,6 @@ export interface Schedule {
   calls: string
 }
 
-
 export async function scheduledTask(
   event: ScheduledController,
   env: Env,
