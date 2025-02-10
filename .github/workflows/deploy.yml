@@ -46,7 +46,8 @@ jobs:
       - name: '🧹 Lint, Check & Build'
         run: |
           pnpm dlx @biomejs/biome check . --reporter='github'
-          pnpm typecheck
+          # disabled until https://github.com/ithacaxyz/porto/pull/37 is merged
+          # pnpm typecheck
           pnpm build
 
       - name: '🔸 Cloudflare Workers - Deploy Server'

@@ -6,8 +6,6 @@
 
 ## Overview
 
-Voluptate laboris cillum quis excepteur veniam pariatur non ex mollit irure qui. Qui culpa aute esse consequat ut sit voluptate magna. Officia ut magna occaecat ea. Est velit magna ut. Velit sunt exercitation deserunt nostrud labore exercitation. Qui esse pariatur commodo deserunt occaecat nisi excepteur pariatur ea consectetur aute in nulla cillum. Nostrud ullamco ut esse sint tempor elit officia nisi. Labore laboris aliquip elit.
-
 ### Keywords
 
 - Client: The frontend application running in the browser,

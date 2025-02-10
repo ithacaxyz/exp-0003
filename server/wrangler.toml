@@ -3,7 +3,7 @@
 
 # start of globally inheritable configuration
 #
-name = "offline-server-example"
+name = "exp-0003-server"
 main = "./src/main.ts"
 minify = true
 keep_vars = true
