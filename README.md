@@ -13,9 +13,10 @@
 
 ### Live demo
 
-- Client: 
-## Getting Started
+- [exp-0003-client.evm.workers.dev](https://exp-0003-client.evm.workers.dev) - Client
+- [exp-0003-server.evm.workers.dev](https://exp-0003-server.evm.workers.dev) - Server
 
+## Getting Started
 
 ```shell
 # install / update pnpm
