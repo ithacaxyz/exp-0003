@@ -43,12 +43,11 @@ jobs:
       - name: '📦 Install Dependencies'
         run: pnpm install --frozen-lockfile
 
-      - name: '🧹 Lint, Check & Build'
+      - name: '🧹 Lint, Check'
         run: |
           pnpm dlx @biomejs/biome check . --reporter='github'
           # disabled until https://github.com/ithacaxyz/porto/pull/37 is merged
-          # pnpm typecheck
-          pnpm build
+          # pnpm typecheck 
 
       - name: '🔸 Cloudflare Workers - Deploy Server'
         working-directory: 'server'
@@ -67,6 +66,7 @@ jobs:
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
         run: |
+          pnpm build
           pnpm wrangler deploy \
             --env='production' \
             --config='wrangler.toml'
