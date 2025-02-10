@@ -1,6 +1,6 @@
 import { Chains } from 'Porto'
-import { porto } from './config.ts'
 import { Hex, Json, P256, Signature } from 'ox'
+import { porto } from './config.ts'
 
 export interface Schedule {
   id: number
