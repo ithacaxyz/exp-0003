@@ -10,6 +10,7 @@ export interface Schedule {
   calls: string
 }
 
+
 export async function scheduledTask(
   event: ScheduledController,
   env: Env,
@@ -53,6 +54,7 @@ export async function scheduledTask(
         continue
       }
 
+      // @ts-expect-error
       const { digest, ...request } = await porto.provider.request({
         method: 'wallet_prepareCalls',
         params: [
@@ -72,7 +74,7 @@ export async function scheduledTask(
         }),
       )
 
-      const [hash] = await porto.provider.request({
+      const hash = await porto.provider.request({
         method: 'wallet_sendPreparedCalls',
         params: [
           {
