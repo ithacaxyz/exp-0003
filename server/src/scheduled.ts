@@ -1,4 +1,5 @@
-import { Chains, Porto } from 'Porto'
+import { Chains } from 'Porto'
+import { porto } from './config.ts'
 import { Hex, Json, P256, Signature } from 'ox'
 
 export interface Schedule {
@@ -16,8 +17,6 @@ export async function scheduledTask(
   context: ExecutionContext,
 ): Promise<void> {
   console.info('cron started', event.scheduledTime)
-
-  const porto = Porto.create()
 
   const schedulesQuery = await env.DB.prepare(
     /* sql */ `SELECT * FROM schedules;`,
