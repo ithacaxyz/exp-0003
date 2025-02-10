@@ -57,7 +57,6 @@ jobs:
           CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
         run: |
           pnpm wrangler deploy \
-            --env='production' \
             --config='wrangler.toml'
 
       - name: '🔸 Cloudflare Workers - Deploy Client'
@@ -68,5 +67,4 @@ jobs:
         run: |
           pnpm build
           pnpm wrangler deploy \
-            --env='production' \
             --config='wrangler.toml'
