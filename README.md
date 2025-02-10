@@ -42,16 +42,19 @@ If you want to deploy the worker or the client or both, check the next sections.
 - `wrangler` CLI: `pnpm add --global wrangler@latest`,
 - authenticate with `wrangler login`
 
+Deploy client
+
 ```shell
-# deploy client
 cd client
 pnpm build
 
-wrangler deploy dist --config='wrangler.toml'
+pnpm wrangler deploy dist --config='wrangler.toml'
+```
 
-# deploy worker
+Deploy worker
+
+```shell
 cd server
-pnpm build
 
-wrangler deploy dist --config='wrangler.toml'
+pnpm wrangler deploy dist --config='wrangler.toml'
 ```
