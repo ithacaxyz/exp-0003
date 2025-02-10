@@ -1,5 +1,8 @@
 export const ExperimentERC20 = {
-  address: '0x706aa5c8e5cc2c67da21ee220718f6f6b154e75c',
+  address: [
+    '0x706aa5c8e5cc2c67da21ee220718f6f6b154e75c',
+    '0x390dd40042a844f92b499069cfe983236d9fe204',
+  ],
   abi: [
     { type: 'fallback', stateMutability: 'payable' },
     { type: 'receive', stateMutability: 'payable' },

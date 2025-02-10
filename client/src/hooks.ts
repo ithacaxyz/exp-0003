@@ -1,19 +1,17 @@
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { Address, type Hex, Json, Value } from 'ox'
-import { useEffect } from 'react'
+import * as React from 'react'
 import { useAccount, useReadContract } from 'wagmi'
+import { SERVER_URL } from './constants.ts'
 import { ExperimentERC20 } from './contracts.ts'
-
-const APP_SERVER_URL = window.location.hostname.includes('localhost')
-  ? 'http://localhost:6900'
-  : 'https://offline-server-example.evm.workers.dev'
 
 export function useBalance() {
   const { address } = useAccount()
   const { data: balance } = useReadContract({
     args: [address!],
-    ...ExperimentERC20,
+    abi: ExperimentERC20.abi,
     functionName: 'balanceOf',
+    address: ExperimentERC20.address.at(0),
     query: { enabled: !!address, refetchInterval: 2_000 },
   })
 
@@ -48,7 +46,7 @@ export function useDebug({
     refetchInterval: (_) => 5_000,
     enabled: !!address && Address.validate(address) && enabled,
     queryFn: async () => {
-      const response = await fetch(`${APP_SERVER_URL}/debug?address=${address}`)
+      const response = await fetch(`${SERVER_URL}/debug?address=${address}`)
       const result = await Json.parse(await response.text())
       return result as DebugData
     },
@@ -58,8 +56,8 @@ export function useDebug({
 export function useClearLocalStorage() {
   const queryClient = useQueryClient()
 
-  // biome-ignore lint/correctness/useExhaustiveDependencies: <explanation>
-  useEffect(() => {
+  // biome-ignore lint/correctness/useExhaustiveDependencies: no need
+  React.useEffect(() => {
     // on `d` press
     window.addEventListener('keydown', (event) => {
       if (event.key === 'd') {

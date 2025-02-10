@@ -2,8 +2,8 @@ name: Deploy
 
 on:
   workflow_dispatch:
-  # push:
-  #   branches: [main]
+  push:
+    branches: [main]
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
@@ -41,7 +41,7 @@ jobs:
           node-version: 'lts/*'
 
       - name: '📦 Install Dependencies'
-        run: pnpm install
+        run: pnpm install --frozen-lockfile
 
       - name: '🧹 Lint, Check & Build'
         run: |

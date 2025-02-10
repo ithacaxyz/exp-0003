@@ -5,31 +5,37 @@ import { parseEther } from 'viem'
 import { useAccount, useConnectors } from 'wagmi'
 import { useCallsStatus, useSendCalls } from 'wagmi/experimental'
 import { porto, wagmiConfig } from './config.ts'
+import { SERVER_URL } from './constants.ts'
 import { ExperimentERC20 } from './contracts.ts'
 import { useBalance, useClearLocalStorage, useDebug } from './hooks.ts'
+import { truncateHexString } from './utilities.ts'
 
-const APP_SERVER_URL = window.location.hostname.includes('localhost')
-  ? 'http://localhost:6900'
-  : 'https://offline-server-example.evm.workers.dev'
-
-const permissions = () =>
-  ({
-    expiry: Math.floor(Date.now() / 1000) + 60 * 60, // 1 hour
-    permissions: {
-      calls: [
-        { signature: 'mint(address,uint256)', to: ExperimentERC20.address },
-        { signature: 'approve(address,uint256)', to: ExperimentERC20.address },
-        { signature: 'transfer(address,uint256)', to: ExperimentERC20.address },
-      ],
-      spend: [
-        {
-          period: 'minute',
-          token: ExperimentERC20.address,
-          limit: Hex.fromNumber(Value.fromEther('50')),
-        },
-      ],
-    },
-  }) as const
+const permissions = {
+  expiry: Math.floor(Date.now() / 1000) + 60 * 60, // 1 hour
+  permissions: {
+    calls: [
+      {
+        signature: 'mint(address,uint256)',
+        to: ExperimentERC20.address.at(0),
+      },
+      {
+        signature: 'approve(address,uint256)',
+        to: ExperimentERC20.address.at(0),
+      },
+      {
+        signature: 'transfer(address,uint256)',
+        to: ExperimentERC20.address.at(0),
+      },
+    ],
+    spend: [
+      {
+        period: 'minute',
+        token: ExperimentERC20.address.at(0),
+        limit: Hex.fromNumber(Value.fromEther('50')),
+      },
+    ],
+  },
+} as const
 
 export function App() {
   useClearLocalStorage()
@@ -69,7 +75,7 @@ function DebugLink() {
     <a
       target="_blank"
       rel="noreferrer"
-      href={`${APP_SERVER_URL}/debug?address=${address}&pretty=true`}
+      href={`${SERVER_URL}/debug?address=${address}&pretty=true`}
       style={{
         position: 'fixed',
         top: '0',
@@ -85,18 +91,6 @@ function DebugLink() {
       DEBUG
     </a>
   )
-}
-
-function truncateHexString({
-  address,
-  length = 6,
-}: {
-  address: string
-  length?: number
-}) {
-  return length > 0
-    ? `${address.slice(0, length)}...${address.slice(-length)}`
-    : address
 }
 
 function Connect() {
@@ -129,9 +123,7 @@ function Connect() {
               onClick={() =>
                 connect.mutate({
                   connector,
-                  grantPermissions: grantPermissions
-                    ? permissions()
-                    : undefined,
+                  grantPermissions: grantPermissions ? permissions : undefined,
                 })
               }
               type="button"
@@ -148,7 +140,7 @@ function Connect() {
                     connector,
                     createAccount: { label },
                     grantPermissions: grantPermissions
-                      ? permissions()
+                      ? permissions
                       : undefined,
                   }),
                 )
@@ -192,7 +184,7 @@ function Connect() {
   )
 }
 
-/* request a key from the App Server */
+/* request a key from the server */
 function RequestKey() {
   const [result, setResult] = useState<{ key: { publicKey: Hex.Hex } } | null>(
     null,
@@ -207,7 +199,7 @@ function RequestKey() {
           const [account] = await porto.provider.request({
             method: 'eth_accounts',
           })
-          const response = await fetch(`${APP_SERVER_URL}/keys`, {
+          const response = await fetch(`${SERVER_URL}/keys`, {
             method: 'POST',
             body: JSON.stringify({
               permissions,
@@ -236,7 +228,6 @@ function RequestKey() {
   )
 }
 
-/* Authorize server key */
 function AuthorizeServerKey() {
   const grantPermissions = Hooks.useGrantPermissions()
 
@@ -253,11 +244,16 @@ function AuthorizeServerKey() {
           const serverKeys = Json.parse(
             (await wagmiConfig.storage?.getItem('keys')) || '{}',
           )
+          console.info(serverKeys)
 
-          const [account] = await porto.provider.request({
-            method: 'eth_accounts',
+          grantPermissions.mutate({
+            address,
+            ...serverKeys,
+            permissions: {
+              spend: permissions.permissions.spend,
+              calls: permissions.permissions.calls,
+            },
           })
-          grantPermissions.mutate(serverKeys)
         }}
       >
         <button
@@ -318,9 +314,9 @@ function Mint() {
           sendCalls({
             calls: [
               {
-                abi: ExperimentERC20.abi,
-                to: ExperimentERC20.address,
                 functionName: 'mint',
+                abi: ExperimentERC20.abi,
+                to: ExperimentERC20.address.at(0),
                 args: [address!, parseEther('100')],
               },
             ],
@@ -402,9 +398,7 @@ function DemoCron() {
           try {
             setStatus('pending')
 
-            /**
-             * first we check if the key is valid (not expired)
-             */
+            /* first we check if the key is valid (not expired) */
             const serverKeys = Json.parse(
               (await wagmiConfig.storage?.getItem('keys')) || '{}',
             )
@@ -425,7 +419,7 @@ function DemoCron() {
               action,
               schedule: cron,
             })
-            const url = `${APP_SERVER_URL}/schedule?${searchParams.toString()}`
+            const url = `${SERVER_URL}/schedule?${searchParams.toString()}`
             const response = await fetch(url, {
               method: 'POST',
               body: JSON.stringify({ address }),
