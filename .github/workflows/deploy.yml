@@ -48,7 +48,7 @@ jobs:
           pnpm dlx @biomejs/biome check . --reporter='github'
           # disabled until https://github.com/ithacaxyz/porto/pull/37 is merged
           # pnpm typecheck
-          # pnpm build
+          pnpm build
 
       - name: '🔸 Cloudflare Workers - Deploy Server'
         working-directory: 'server'
