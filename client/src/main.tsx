@@ -9,7 +9,7 @@ import { ReactQueryDevtools } from '@tanstack/react-query-devtools'
 import { StrictMode } from 'react'
 import { createRoot } from 'react-dom/client'
 import { WagmiProvider } from 'wagmi'
-import { App } from './app.tsx'
+import { App } from './App.tsx'
 import { wagmiConfig } from './config.ts'
 
 const queryClient: QueryClient = new QueryClient({
