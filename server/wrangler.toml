@@ -34,7 +34,7 @@ database_id = "80b220b8-9f1d-4179-8383-ddeeeac6fcf0"
 crons = ["* * * * *"]
 
 [env.production]
-name = "offline-server-example"
+name = "exp-0003-server"
 workers_dev = true
 vars = { ENVIRONMENT = "production" }
 

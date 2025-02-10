@@ -13,6 +13,9 @@ compatibility_flags = ["nodejs_compat", "nodejs_als"]
 [observability]
 enabled = true
 
+[vars]
+VITE_DISABLE_DIALOG=true
+
 [dev]
 port = 6901
 
