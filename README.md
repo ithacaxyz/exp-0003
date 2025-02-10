@@ -13,8 +13,8 @@
 
 ### Live demo
 
-- [exp-0003-client.evm.workers.dev](https://exp-0003-client.evm.workers.dev) - Client
-- [exp-0003-server.evm.workers.dev](https://exp-0003-server.evm.workers.dev) - Server
+- <a href="https://exp-0003-client.evm.workers.dev" target="_blank">exp-0003-client.evm.workers.dev</a> - Client
+- <a href="https://exp-0003-server.evm.workers.dev" target="_blank">exp-0003-server.evm.workers.dev</a> - Server
 
 ## Getting Started
 
@@ -38,9 +38,9 @@ If you want to deploy the worker or the client or both, check the next sections.
 
 ### Prerequisites
 
-- A Cloudflare account
+- a Cloudflare account
 - `wrangler` CLI: `pnpm add --global wrangler@latest`,
-- `wrangler login`
+- authenticate with `wrangler login`
 
 ```shell
 # deploy client

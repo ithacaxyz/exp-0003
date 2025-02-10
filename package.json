@@ -2,6 +2,7 @@
   "name": "exp-0003",
   "private": true,
   "type": "module",
+  "repository": "github:ithacaxyz/exp-0003",
   "scripts": {
     "dev": "pnpm --filter='*' dev",
     "build": "pnpm --filter='*' build",
