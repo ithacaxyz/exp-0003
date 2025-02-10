@@ -15,7 +15,6 @@ compatibility_flags = ["nodejs_compat", "nodejs_als"]
 # end of globally inheritable configuration
 
 workers_dev = true
-vars = { ENVIRONMENT = "development" }
 
 [dev]
 port = 6900
@@ -32,21 +31,6 @@ database_id = "80b220b8-9f1d-4179-8383-ddeeeac6fcf0"
 
 [triggers]
 crons = ["* * * * *"]
-
-[env.production]
-name = "exp-0003-server"
-workers_dev = true
-vars = { ENVIRONMENT = "production" }
-
-[[env.production.kv_namespaces]]
-binding = "KEYS_01"
-id = "e3099ba311184208a453ad289f2560f6"
-preview_id = "1ce6744860ec4aaeabaa9b16a54d1e17"
-
-[[env.production.d1_databases]]
-binding = "DB"
-database_name = "offline-demo-txs"
-database_id = "bcc90687-1428-41ca-8825-20d84358e256"
 
 [observability]
 enabled = true

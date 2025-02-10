@@ -10,7 +10,7 @@
     "db:create": "wrangler --config='wrangler.toml' d1 create offline-demo-txs",
     "db:delete": "wrangler --config='wrangler.toml' d1 delete offline-demo-txs --skip-confirmation",
     "db:bootstrap": "wrangler --config='wrangler.toml' d1 execute offline-demo-txs --file='schema.sql' --local",
-    "db:bootstrap:remote": "wrangler --config='wrangler.toml' d1 execute offline-demo-txs --file='schema.sql' --remote --env='production'",
+    "db:bootstrap:remote": "wrangler --config='wrangler.toml' d1 execute offline-demo-txs --file='schema.sql' --remote",
     "typecheck": "tsc --noEmit --project tsconfig.json"
   },
   "dependencies": {
