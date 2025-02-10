@@ -26,8 +26,9 @@ app.onError((error, context) => {
 })
 
 /**
- * Debug stored keys
- * If `address` is provided, returns the value of the key, otherwise list all keys
+ * Debug stored keys, schedules and transactions
+ * If `address` is provided, returns the values for the given address
+ * Otherwise, returns all keys, schedules & transactions
  */
 app.get('/debug', async (context) => {
   showRoutes(app, { verbose: true, colorize: true })
@@ -74,9 +75,6 @@ type Permissions = RpcSchema.ExtractParams<
   'experimental_grantPermissions'
 >[number]['permissions']
 
-/**
- * Creates new keys
- */
 app.post('/keys', async (context) => {
   const payload = await context.req.json<{
     address: Address.Address
@@ -120,6 +118,29 @@ app.post('/keys', async (context) => {
   )
 
   return context.json(result)
+})
+
+/**
+ * Nuke a key
+ * Deletes the key from the database and the KV store
+ */
+app.post('/nuke', async (context) => {
+  const { address, publicKey } = await context.req.json<{
+    publicKey: string
+    address: Address.Address
+  }>()
+  try {
+    await context.env.KEYS_01.delete(address.toLowerCase())
+    await context.env.DB.prepare(`DELETE FROM transactions WHERE address = ?`)
+      .bind(address.toLowerCase())
+      .all()
+
+    return context.json({ success: true })
+  } catch (error) {
+    const errorMessage = error instanceof Error ? error.message : error
+    console.error(errorMessage)
+    return context.json({ error: errorMessage }, 500)
+  }
 })
 
 /**
