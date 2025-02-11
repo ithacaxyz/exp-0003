@@ -60,7 +60,7 @@ export function App() {
       <hr />
       <RequestKey />
       <hr />
-      <AuthorizeServerKey />
+      <GrantPermissions />
       <hr />
       <Mint />
       <hr />
@@ -228,7 +228,7 @@ function RequestKey() {
   )
 }
 
-function AuthorizeServerKey() {
+function GrantPermissions() {
   const grantPermissions = Hooks.useGrantPermissions()
 
   const { address } = useAccount()

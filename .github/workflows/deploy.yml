@@ -23,27 +23,19 @@ jobs:
       - name: '🔑 Checkout'
         uses: actions/checkout@v4
 
-      - name: 'Get pnpm Version'
-        id: pnpm-version
-        run: |
-          PNPM_VERSION=$(cat package.json | jq --raw-output '.packageManager' | awk -F'@' '{print $2}')
-          echo "PNPM_VERSION=$PNPM_VERSION" >> $GITHUB_OUTPUT
-
-      - name: '🍂 Setup pnpm'
+      - name: 'Setup pnpm'
         uses: pnpm/action-setup@v4
-        with:
-          version: ${{ steps.pnpm-version.outputs.PNPM_VERSION }}
 
-      - name: '🐢 Setup Node.js'
+      - name: 'Setup Node.js'
         uses: actions/setup-node@v4
         with:
           cache: 'pnpm'
           node-version: 'lts/*'
 
-      - name: '📦 Install Dependencies'
+      - name: 'Install Dependencies'
         run: pnpm install
 
-      - name: '🧹 Lint, Check'
+      - name: 'Lint, Check'
         run: |
           pnpm dlx @biomejs/biome check . --reporter='github'
           # disabled until https://github.com/ithacaxyz/porto/pull/37 is merged
@@ -56,9 +48,7 @@ jobs:
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
         run: |
-          pnpm dlx wrangler@latest deploy \
-            --env='production' \
-            --config='wrangler.toml'
+          pnpm dlx wrangler@latest deploy --env='production' --config='wrangler.toml'
 
       - name: '🔸 Cloudflare Workers - Deploy Client'
         working-directory: 'client'
@@ -67,5 +57,4 @@ jobs:
           CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
         run: |
           pnpm build
-          pnpm dlx wrangler@latest deploy \
-            --config='wrangler.toml'
+          pnpm dlx wrangler@latest deploy --config='wrangler.toml'
