@@ -7,7 +7,7 @@ name = "exp-0003-client"
 minify = true
 keep_vars = true
 workers_dev = true
-compatibility_date = "2025-02-07"
+compatibility_date = "2025-02-11"
 compatibility_flags = ["nodejs_compat", "nodejs_als"]
 
 [observability]

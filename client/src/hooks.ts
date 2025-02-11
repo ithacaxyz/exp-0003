@@ -1,9 +1,9 @@
-import { useQuery, useQueryClient } from '@tanstack/react-query'
-import { Address, type Hex, Json, Value } from 'ox'
 import * as React from 'react'
-import { useAccount, useReadContract } from 'wagmi'
 import { SERVER_URL } from './constants.ts'
 import { ExperimentERC20 } from './contracts.ts'
+import { useAccount, useReadContract } from 'wagmi'
+import { Address, type Hex, Json, Value } from 'ox'
+import { useQuery, useQueryClient } from '@tanstack/react-query'
 
 export function useBalance() {
   const { address } = useAccount()

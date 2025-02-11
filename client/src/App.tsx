@@ -1,14 +1,14 @@
-import { type Errors, Hex, Json, Value } from 'ox'
-import { Hooks } from 'porto/wagmi'
-import { useEffect, useState, useSyncExternalStore } from 'react'
 import { parseEther } from 'viem'
-import { useAccount, useConnectors } from 'wagmi'
-import { useCallsStatus, useSendCalls } from 'wagmi/experimental'
-import { porto, wagmiConfig } from './config.ts'
+import { Hooks } from 'porto/wagmi'
 import { SERVER_URL } from './constants.ts'
+import { porto, wagmiConfig } from './config.ts'
 import { ExperimentERC20 } from './contracts.ts'
-import { useBalance, useClearLocalStorage, useDebug } from './hooks.ts'
+import { useAccount, useConnectors } from 'wagmi'
 import { truncateHexString } from './utilities.ts'
+import { type Errors, Hex, Json, Value } from 'ox'
+import { useEffect, useState, useSyncExternalStore } from 'react'
+import { useCallsStatus, useSendCalls } from 'wagmi/experimental'
+import { useBalance, useClearLocalStorage, useDebug } from './hooks.ts'
 
 const permissions = {
   expiry: Math.floor(Date.now() / 1000) + 60 * 60, // 1 hour
@@ -263,7 +263,7 @@ function GrantPermissions() {
         >
           {grantPermissions.status === 'pending'
             ? 'Authorizing…'
-            : 'Authorize a Session Key'}
+            : 'Grant Permissions'}
         </button>
         {grantPermissions.status === 'error' && (
           <p>{grantPermissions.error?.message}</p>

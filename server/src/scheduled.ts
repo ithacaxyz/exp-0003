@@ -1,6 +1,6 @@
 import { Chains } from 'Porto'
-import { Hex, Json, P256, Signature } from 'ox'
 import { porto } from './config.ts'
+import { Hex, Json, P256, Signature, type Address } from 'ox'
 
 export interface Schedule {
   id: number
@@ -16,7 +16,11 @@ export async function scheduledTask(
   env: Env,
   context: ExecutionContext,
 ): Promise<void> {
-  console.info('cron started', event.scheduledTime)
+  const scheduledAt = new Date(event.scheduledTime)
+    .toISOString()
+    .replaceAll('T', ' ')
+    .replaceAll('Z', '')
+  console.info(`Cron started - scheduled at: ${scheduledAt}`)
 
   const schedulesQuery = await env.DB.prepare(
     /* sql */ `SELECT * FROM schedules;`,
@@ -27,9 +31,8 @@ export async function scheduledTask(
   const statements: Array<D1PreparedStatement> = []
 
   for (const scheduleTask of schedulesQuery.results) {
+    const { id, address, schedule, action, calls, created_at } = scheduleTask
     try {
-      const { id, address, schedule, action, calls } = scheduleTask
-
       if (schedule !== '* * * * *') {
         // we're only handling 'once every minute' schedules for now
         console.info('skipping schedule', schedule)
@@ -37,12 +40,22 @@ export async function scheduledTask(
       }
 
       const storedKey = await env.KEYS_01.get(address.toLowerCase())
-      if (!storedKey) continue
+      if (!storedKey) {
+        console.warn(`Key not found for: ${address}`)
+        continue
+      }
+      console.info(Json.stringify(storedKey, undefined, 2))
 
-      const { privateKey, account, ...key } = Json.parse(storedKey)
+      const { account, expiry, role, ...keyPair } = Json.parse(storedKey) as {
+        expiry: number
+        publicKey: Hex.Hex
+        privateKey: Hex.Hex
+        account: Address.Address
+        role: 'session' | 'admin'
+      }
 
-      if (key.expiry < Math.floor(Date.now() / 1_000)) {
-        console.info('key expired', key.expiry)
+      if (expiry < Math.floor(Date.now() / 1_000)) {
+        console.info('key expired', expiry)
         const deleteQuery = await env.DB.prepare(
           /* sql */ `DELETE FROM schedules WHERE id = ?;`,
         )
@@ -52,14 +65,13 @@ export async function scheduledTask(
         continue
       }
 
-      // @ts-expect-error
       const { digest, ...request } = await porto.provider.request({
         method: 'wallet_prepareCalls',
         params: [
           {
-            calls: Json.parse(calls),
             version: '1',
             from: account,
+            calls: Json.parse(calls),
             chainId: Hex.fromNumber(Chains.odysseyTestnet.id),
           },
         ],
@@ -68,32 +80,50 @@ export async function scheduledTask(
       const signature = Signature.toHex(
         P256.sign({
           payload: digest,
-          privateKey,
+          privateKey: keyPair.privateKey,
         }),
       )
 
-      const hash = await porto.provider.request({
+      const [sendPreparedCallsResult] = await porto.provider.request({
         method: 'wallet_sendPreparedCalls',
         params: [
           {
             ...request,
             signature: {
-              publicKey: key.publicKey,
               type: 'p256',
               value: signature,
+              publicKey: keyPair.publicKey,
             },
           },
         ],
       })
 
+      const hash = sendPreparedCallsResult?.id
+      if (!hash) {
+        console.error(
+          `failed to send prepared calls for ${address}. No hash returned from wallet_sendPreparedCalls`,
+        )
+        continue
+      }
+
       const statement = env.DB.prepare(
         /* sql */ `INSERT INTO transactions (address, hash, role, public_key) VALUES (?, ?, ?, ?)`,
-      ).bind(address.toLowerCase(), hash, key.role, key.publicKey)
+      ).bind(address.toLowerCase(), hash, role, keyPair.publicKey)
 
       statements.push(statement)
     } catch (error) {
-      const errorMessage = error instanceof Error ? error.message : error
-      console.error(errorMessage)
+      if (error instanceof Error) {
+        if (!error.message.includes('has not been authorized')) {
+          console.info(error.message, `schedule for ${address} deleted`)
+
+          const deleteQuery = await env.DB.prepare(
+            /* sql */ `DELETE FROM schedules WHERE id = ?;`,
+          )
+            .bind(id)
+            .run()
+          if (!deleteQuery.success) return console.error(deleteQuery.error)
+        }
+      } else console.error(error)
     }
   }
 
@@ -106,5 +136,9 @@ export async function scheduledTask(
     })
   }
 
-  console.info('cron processed', event.scheduledTime)
+  console.info(
+    `Cron completed - total time taken: ${Date.now() - event.scheduledTime}ms`,
+  )
+  console.info(`Total schedules processed: ${schedulesQuery.results.length}`)
+  console.info(`Total transactions inserted: ${statements.length}`)
 }
