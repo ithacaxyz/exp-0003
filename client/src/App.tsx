@@ -11,7 +11,7 @@ import { useCallsStatus, useSendCalls } from 'wagmi/experimental'
 import { useBalance, useClearLocalStorage, useDebug } from './hooks.ts'
 
 const permissions = {
-  expiry: Math.floor(Date.now() / 1000) + 60 * 60, // 1 hour
+  expiry: Math.floor(Date.now() / 1_000) + 60 * 60, // 1 hour
   permissions: {
     calls: [
       {
@@ -29,9 +29,9 @@ const permissions = {
     ],
     spend: [
       {
-        period: 'minute',
+        period: 'hour',
         token: ExperimentERC20.address.at(0),
-        limit: Hex.fromNumber(Value.fromEther('50')),
+        limit: Hex.fromNumber(Value.fromEther('500000')),
       },
     ],
   },
@@ -184,30 +184,38 @@ function Connect() {
   )
 }
 
-/* request a key from the server */
 function RequestKey() {
-  const [result, setResult] = useState<{ key: { publicKey: Hex.Hex } } | null>(
-    null,
-  )
+  const [result, setResult] = useState<{
+    type: 'p256'
+    expiry: number
+    publicKey: Hex.Hex
+  } | null>(null)
 
-  const { refetch } = useDebug({ enabled: result !== null })
+  const { address } = useAccount()
+
+  console.info('address', address)
+
+  const { refetch } = useDebug({ enabled: result !== null, address })
   return (
     <div>
       <h3>[server] Request Key from Server (POST /keys)</h3>
       <button
-        onClick={async () => {
+        onClick={async (_) => {
           const [account] = await porto.provider.request({
             method: 'eth_accounts',
           })
-          const response = await fetch(`${SERVER_URL}/keys`, {
-            method: 'POST',
-            body: JSON.stringify({
-              permissions,
-              address: account,
-            }),
+
+          console.info('account', account)
+
+          const searchParams = new URLSearchParams({
+            expiry: String(Math.floor(Date.now() / 1000) + 60 * 60),
           })
+          const response = await fetch(
+            `${SERVER_URL}/keys/${account}?${searchParams.toString()}`,
+          )
+
           const result = await Json.parse(await response.text())
-          console.info(Json.stringify(result, undefined, 2))
+
           wagmiConfig.storage?.setItem('keys', Json.stringify(result))
           setResult(result)
           refetch()
@@ -219,7 +227,8 @@ function RequestKey() {
       {result ? (
         <details>
           <summary style={{ marginTop: '1rem' }}>
-            {truncateHexString({ address: result?.key.publicKey, length: 12 })}
+            {truncateHexString({ address: result?.publicKey, length: 12 })} -
+            expires: {new Date(result.expiry * 1000).toLocaleString()}
           </summary>
           <pre>{JSON.stringify(result, undefined, 2)}</pre>
         </details>
@@ -232,7 +241,6 @@ function GrantPermissions() {
   const grantPermissions = Hooks.useGrantPermissions()
 
   const { address } = useAccount()
-
   return (
     <div>
       <h3>
@@ -241,18 +249,18 @@ function GrantPermissions() {
       <form
         onSubmit={async (event) => {
           event.preventDefault()
-          const serverKeys = Json.parse(
+          const key = Json.parse(
             (await wagmiConfig.storage?.getItem('keys')) || '{}',
-          )
-          console.info(serverKeys)
+          ) as { publicKey: Hex.Hex; type: 'p256'; expiry: number }
+
+          // if `expry` is present in both `key` and `permissions`, pick the lower value
+          const expiry = Math.min(key.expiry, permissions.expiry)
 
           grantPermissions.mutate({
+            key,
+            expiry,
             address,
-            ...serverKeys,
-            permissions: {
-              spend: permissions.permissions.spend,
-              calls: permissions.permissions.calls,
-            },
+            permissions: permissions.permissions,
           })
         }}
       >
@@ -316,7 +324,7 @@ function Mint() {
               {
                 functionName: 'mint',
                 abi: ExperimentERC20.abi,
-                to: ExperimentERC20.address.at(0),
+                to: ExperimentERC20.address[0],
                 args: [address!, parseEther('100')],
               },
             ],
@@ -398,16 +406,17 @@ function DemoCron() {
           try {
             setStatus('pending')
 
-            /* first we check if the key is valid (not expired) */
-            const serverKeys = Json.parse(
-              (await wagmiConfig.storage?.getItem('keys')) || '{}',
-            )
-            if (serverKeys?.expiry < Math.floor(Date.now() / 1000)) {
+            if (!address) return setError('No address')
+
+            const { expiry } = permissions
+
+            if (expiry < Math.floor(Date.now() / 1000)) {
               setError('Key expired')
               throw new Error('Key expired')
             }
 
             const formData = new FormData(event.target as HTMLFormElement)
+
             const action =
               (formData.get('action') as string) ?? 'approve-transfer'
             const schedule = formData.get('schedule') as Schedule
@@ -415,20 +424,17 @@ function DemoCron() {
             const cron = schedules[schedule]
             if (!cron) return setError('Invalid schedule')
 
-            const searchParams = new URLSearchParams({
-              action,
-              schedule: cron,
-            })
+            const searchParams = new URLSearchParams({ address })
             const url = `${SERVER_URL}/schedule?${searchParams.toString()}`
             const response = await fetch(url, {
               method: 'POST',
-              body: JSON.stringify({ address }),
+              body: JSON.stringify({ action, schedule: cron }),
             })
 
             if (!response.ok) return setError(await response.json())
 
-            const result = await response.text()
-            console.info('result', result)
+            const result = await response.json()
+            console.info('result success', result)
             setStatus('success')
           } catch (error) {
             const errorMessage =

@@ -8,7 +8,7 @@ main = "./src/main.ts"
 minify = true
 keep_vars = true
 placement = { mode = "smart" }
-compatibility_date = "2025-02-11"
+compatibility_date = "2025-02-07"
 compatibility_flags = ["nodejs_compat", "nodejs_als"]
 
 #

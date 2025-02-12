@@ -1,6 +1,7 @@
 import { Chains } from 'Porto'
 import { porto } from './config.ts'
-import { Hex, Json, P256, Signature, type Address } from 'ox'
+import { ServerKeyPair } from './kv-keys.ts'
+import { Address, Hex, Json, P256, Signature } from 'ox'
 
 export interface Schedule {
   id: number
@@ -26,12 +27,18 @@ export async function scheduledTask(
     /* sql */ `SELECT * FROM schedules;`,
   ).all<Schedule>()
 
-  if (!schedulesQuery.success) return console.error(schedulesQuery.error)
+  if (!schedulesQuery.success) {
+    console.error(schedulesQuery.error)
+    return
+  }
 
   const statements: Array<D1PreparedStatement> = []
 
   for (const scheduleTask of schedulesQuery.results) {
     const { id, address, schedule, action, calls, created_at } = scheduleTask
+
+    console.info('address', address)
+
     try {
       if (schedule !== '* * * * *') {
         // we're only handling 'once every minute' schedules for now
@@ -39,23 +46,16 @@ export async function scheduledTask(
         continue
       }
 
-      const storedKey = await env.KEYS_01.get(address.toLowerCase())
-      if (!storedKey) {
-        console.warn(`Key not found for: ${address}`)
-        continue
-      }
-      console.info(Json.stringify(storedKey, undefined, 2))
-
-      const { account, expiry, role, ...keyPair } = Json.parse(storedKey) as {
-        expiry: number
-        publicKey: Hex.Hex
-        privateKey: Hex.Hex
-        account: Address.Address
-        role: 'session' | 'admin'
-      }
-
-      if (expiry < Math.floor(Date.now() / 1_000)) {
-        console.info('key expired', expiry)
+      const storedKey = await ServerKeyPair.getFromKV(env, { address })
+      console.info('stordKeye')
+      console.info(storedKey)
+      if (
+        !Address.validate(address) ||
+        !storedKey ||
+        Number(storedKey.expiry) < Math.floor(Date.now() / 1_000)
+      ) {
+        console.warn(`Problematic key for: ${address}`)
+        // delete the schedule
         const deleteQuery = await env.DB.prepare(
           /* sql */ `DELETE FROM schedules WHERE id = ?;`,
         )
@@ -65,24 +65,30 @@ export async function scheduledTask(
         continue
       }
 
+      console.info('preparing calls')
+      console.info(calls)
       const { digest, ...request } = await porto.provider.request({
         method: 'wallet_prepareCalls',
         params: [
           {
-            version: '1',
-            from: account,
             calls: Json.parse(calls),
             chainId: Hex.fromNumber(Chains.odysseyTestnet.id),
           },
         ],
       })
+      console.info('digest')
+      console.info(digest)
+      console.info('request')
+      console.info(request)
 
       const signature = Signature.toHex(
         P256.sign({
           payload: digest,
-          privateKey: keyPair.privateKey,
+          privateKey: storedKey.privateKey,
         }),
       )
+
+      console.info('signature', signature)
 
       const [sendPreparedCallsResult] = await porto.provider.request({
         method: 'wallet_sendPreparedCalls',
@@ -90,13 +96,15 @@ export async function scheduledTask(
           {
             ...request,
             signature: {
-              type: 'p256',
               value: signature,
-              publicKey: keyPair.publicKey,
+              type: storedKey.type,
+              publicKey: storedKey.publicKey,
             },
           },
         ],
       })
+      console.info('sendPreparedCallsResult')
+      console.info(sendPreparedCallsResult)
 
       const hash = sendPreparedCallsResult?.id
       if (!hash) {
@@ -108,22 +116,25 @@ export async function scheduledTask(
 
       const statement = env.DB.prepare(
         /* sql */ `INSERT INTO transactions (address, hash, role, public_key) VALUES (?, ?, ?, ?)`,
-      ).bind(address.toLowerCase(), hash, role, keyPair.publicKey)
+      ).bind(address.toLowerCase(), hash, storedKey.role, storedKey.publicKey)
 
       statements.push(statement)
     } catch (error) {
-      if (error instanceof Error) {
-        if (!error.message.includes('has not been authorized')) {
-          console.info(error.message, `schedule for ${address} deleted`)
+      if (!(error instanceof Error)) {
+        console.error(error)
+        continue
+      }
 
-          const deleteQuery = await env.DB.prepare(
-            /* sql */ `DELETE FROM schedules WHERE id = ?;`,
-          )
-            .bind(id)
-            .run()
-          if (!deleteQuery.success) return console.error(deleteQuery.error)
-        }
-      } else console.error(error)
+      if (error.message.includes('has not been authorized')) {
+        console.info(error.message, `schedule for ${address} deleted`)
+
+        const deleteQuery = await env.DB.prepare(
+          /* sql */ `DELETE FROM schedules WHERE id = ?;`,
+        )
+          .bind(id)
+          .run()
+        if (!deleteQuery.success) return console.error(deleteQuery.error)
+      }
     }
   }
 
