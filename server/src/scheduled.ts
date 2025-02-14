@@ -15,7 +15,7 @@ export interface Schedule {
 export async function scheduledTask(
   event: ScheduledController,
   env: Env,
-  context: ExecutionContext,
+  _context: ExecutionContext,
 ): Promise<void> {
   const scheduledAt = new Date(event.scheduledTime)
     .toISOString()

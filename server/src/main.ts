@@ -30,7 +30,6 @@ app.onError((error, context) => {
 })
 
 app.get('/keys/:address?', async (context) => {
-  console.info('keys')
   const { address } = context.req.param()
   const { expiry } = context.req.query()
 
@@ -84,7 +83,6 @@ app.post('/revoke', async (context) => {
  */
 app.post('/schedule', async (context) => {
   const account = context.req.query('address')
-  console.info('account', account)
   if (!account || !Address.validate(account)) {
     throw new HTTPException(400, { message: 'Invalid address' })
   }
@@ -101,7 +99,6 @@ app.post('/schedule', async (context) => {
   const storedKey = await ServerKeyPair.getFromKV(context.env, {
     address: account,
   })
-  console.info('storedKey', storedKey)
   if (!storedKey) throw new HTTPException(400, { message: 'Key not found' })
   const { expiry, role } = storedKey
   if (expiry && expiry < Math.floor(Date.now() / 1000)) {
@@ -109,8 +106,6 @@ app.post('/schedule', async (context) => {
   }
 
   const calls = buildActionCall({ action, account })
-
-  console.info('calls', calls)
 
   const insertSchedule = await context.env.DB.prepare(
     /* sql */ `

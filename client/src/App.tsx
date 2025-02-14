@@ -16,21 +16,21 @@ const permissions = {
     calls: [
       {
         signature: 'mint(address,uint256)',
-        to: ExperimentERC20.address.at(0),
+        to: ExperimentERC20.address[0],
       },
       {
         signature: 'approve(address,uint256)',
-        to: ExperimentERC20.address.at(0),
+        to: ExperimentERC20.address[0],
       },
       {
         signature: 'transfer(address,uint256)',
-        to: ExperimentERC20.address.at(0),
+        to: ExperimentERC20.address[0],
       },
     ],
     spend: [
       {
         period: 'minute',
-        token: ExperimentERC20.address.at(0),
+        token: ExperimentERC20.address[0],
         limit: Hex.fromNumber(Value.fromEther('500000')),
       },
     ],
@@ -71,11 +71,17 @@ export function App() {
 
 function DebugLink() {
   const { address } = useAccount()
+
+  const searchParams = new URLSearchParams({
+    pretty: 'true',
+    ...(address ? { address } : {}),
+  })
+
   return (
     <a
       target="_blank"
       rel="noreferrer"
-      href={`${SERVER_URL}/debug?address=${address}&pretty=true`}
+      href={`${SERVER_URL}/debug?${searchParams.toString()}`}
       style={{
         position: 'fixed',
         top: '0',
@@ -196,7 +202,7 @@ function RequestKey() {
   const { refetch } = useDebug({ enabled: result !== null, address })
   return (
     <div>
-      <h3>[server] Request Key from Server (POST /keys)</h3>
+      <h3>[server] Request Key from Server (GET /keys/:address?expiry)</h3>
       <button
         onClick={async (_) => {
           const [account] = await porto.provider.request({
