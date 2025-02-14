@@ -9,6 +9,9 @@
     "ignore": ["_"],
     "ignoreUnknown": true
   },
+  "organizeImports": {
+    "enabled": false
+  },
   "formatter": {
     "enabled": true,
     "indentWidth": 2,

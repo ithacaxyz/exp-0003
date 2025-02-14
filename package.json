@@ -10,7 +10,8 @@
     "format": "biome format --write .",
     "lint": "biome lint --write .",
     "check": "biome check --write .",
-    "typecheck": "pnpm --filter='*' typecheck"
+    "typecheck": "pnpm --filter='*' typecheck",
+    "up": "pnpm dlx taze@latest --recursive --update major --workspace-root"
   },
   "devDependencies": {
     "@biomejs/biome": "^1.9.4",
@@ -19,6 +20,6 @@
     "typescript": "catalog:",
     "wrangler": "catalog:"
   },
-  "packageManager": "pnpm@10.2.1",
+  "packageManager": "pnpm@10.3.0",
   "license": "MIT"
 }

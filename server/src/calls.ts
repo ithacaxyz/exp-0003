@@ -1,5 +1,5 @@
-import { AbiFunction, type Address, Value } from 'ox'
 import { ExperimentERC20 } from './contracts.ts'
+import { AbiFunction, type Address, Value } from 'ox'
 
 export const actions = ['mint', 'approve-transfer']
 
@@ -13,7 +13,7 @@ export function buildActionCall({
   if (action === 'mint') {
     return <const>[
       {
-        to: ExperimentERC20.address.at(0),
+        to: ExperimentERC20.address[0],
         data: AbiFunction.encodeData(
           AbiFunction.fromAbi(ExperimentERC20.abi, 'mint'),
           [account, Value.fromEther('10')],
@@ -25,14 +25,14 @@ export function buildActionCall({
   if (action === 'approve-transfer') {
     return <const>[
       {
-        to: ExperimentERC20.address.at(0),
+        to: ExperimentERC20.address[0],
         data: AbiFunction.encodeData(
           AbiFunction.fromAbi(ExperimentERC20.abi, 'approve'),
           [account, Value.fromEther('1')],
         ),
       },
       {
-        to: ExperimentERC20.address.at(0),
+        to: ExperimentERC20.address[0],
         data: AbiFunction.encodeData(
           AbiFunction.fromAbi(ExperimentERC20.abi, 'transfer'),
           ['0x0000000000000000000000000000000000000000', Value.fromEther('1')],

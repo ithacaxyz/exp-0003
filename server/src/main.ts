@@ -1,18 +1,21 @@
 import { Hono } from 'hono'
-import { getConnInfo } from 'hono/cloudflare-workers'
 import { cors } from 'hono/cors'
-import { showRoutes } from 'hono/dev'
 import { logger } from 'hono/logger'
+import { porto } from './config.ts'
+import { debugApp } from './debug.ts'
+import { requestId } from 'hono/request-id'
+import { Address, Json, type Hex } from 'ox'
+import { ServerKeyPair } from './kv-keys.ts'
 import { prettyJSON } from 'hono/pretty-json'
-import { Address, Json, P256, PublicKey, type RpcSchema } from 'ox'
-import type { RpcSchema as RpcSchema_porto } from 'porto'
-import { actions, buildActionCall } from './calls.ts'
 import { scheduledTask } from './scheduled.ts'
+import { HTTPException } from 'hono/http-exception'
+import { actions, buildActionCall } from './calls.ts'
 
 const app = new Hono<{ Bindings: Env }>()
 
 app.use(logger())
 app.use(prettyJSON({ space: 2 }))
+app.use('*', requestId({ headerName: 'EXP0003-Request-Id' }))
 app.use(
   '*',
   cors({ origin: '*', allowMethods: ['GET', 'HEAD', 'OPTIONS', 'POST'] }),
@@ -22,104 +25,56 @@ app.get('/', (context) => context.text('gm'))
 
 app.onError((error, context) => {
   console.info(error)
+  if (error instanceof HTTPException) error.getResponse()
   return context.json({ error: error.message }, 500)
 })
 
-/**
- * Debug stored keys
- * If `address` is provided, returns the value of the key, otherwise list all keys
- */
-app.get('/debug', async (context) => {
-  showRoutes(app, { verbose: true, colorize: true })
-  const { remote } = getConnInfo(context)
-  const address = context.req.query('address')
-  if (!address) {
-    const keys = await context.env.KEYS_01.list()
-    const statements = [
-      context.env.DB.prepare(`SELECT * FROM transactions;`),
-      context.env.DB.prepare(`SELECT * FROM schedules;`),
-    ]
-    const [transactions, schedules] = await context.env.DB.batch(statements)
-    return context.json({
-      transactions: transactions?.results,
-      schedules: schedules?.results,
-      keys,
-      remote,
+app.get('/keys/:address?', async (context) => {
+  const { address } = context.req.param()
+  const { expiry } = context.req.query()
+
+  console.info('address', address)
+  console.info('expiry', expiry)
+
+  if (!address || !Address.validate(address)) {
+    return context.json({ error: 'Invalid address' }, 400)
+  }
+
+  const keyPair = await ServerKeyPair.generate(context.env, {
+    expiry: expiry ? Number(expiry) : undefined,
+  })
+
+  context.executionCtx.waitUntil(
+    ServerKeyPair.storeInKV(context.env, { address, keyPair }),
+  )
+  1
+  const { publicKey, role, type } = keyPair
+
+  return context.json({ type, publicKey, expiry, role })
+})
+
+app.post('/revoke', async (context) => {
+  const permission = await context.req.json<{
+    address: Address.Address
+    id: Hex.Hex
+  }>()
+
+  if (permission.address && !Address.validate(permission.address)) {
+    throw new HTTPException(400, {
+      message: `Invalid address: ${JSON.stringify(permission, undefined, 2)}`,
     })
   }
 
-  const key = await context.env.KEYS_01.get(address.toLowerCase())
-  if (!key) return context.json({ error: 'Key not found' }, 200)
+  if (!permission.id) {
+    throw new HTTPException(400, {
+      message: `Invalid permission id: ${JSON.stringify(permission, undefined, 2)}`,
+    })
+  }
 
-  const _address = address.toLowerCase()
-  const statements = [
-    context.env.DB.prepare(`SELECT * FROM transactions WHERE address = ?`).bind(
-      _address,
-    ),
-    context.env.DB.prepare(`SELECT * FROM schedules WHERE address = ?`).bind(
-      _address,
-    ),
-  ]
-  const [transactions, schedules] = await context.env.DB.batch(statements)
-  return context.json({
-    transactions: transactions?.results,
-    schedules: schedules?.results,
-    key: Json.parse(key),
-    remote,
+  const revokePermissions = await porto.provider.request({
+    method: 'experimental_revokePermissions',
+    params: [permission],
   })
-})
-
-type Permissions = RpcSchema.ExtractParams<
-  RpcSchema_porto.Schema,
-  'experimental_grantPermissions'
->[number]['permissions']
-
-/**
- * Creates new keys
- */
-app.post('/keys', async (context) => {
-  const payload = await context.req.json<{
-    address: Address.Address
-    permissions: Permissions
-  }>()
-
-  const isAddress = Address.validate(payload.address)
-  if (!isAddress) return context.json({ error: 'Invalid address' }, 400)
-
-  const privateKey = P256.randomPrivateKey()
-  const publicKey = PublicKey.toHex(P256.getPublicKey({ privateKey }), {
-    includePrefix: false,
-  })
-
-  const result = {
-    expiry: Math.floor(Date.now() / 1_000) + 4 * 60, // 3 minutes
-    permissions: payload.permissions,
-    key: {
-      publicKey,
-      type: 'p256',
-    },
-  } satisfies RpcSchema.ExtractParams<
-    RpcSchema_porto.Schema,
-    'experimental_grantPermissions'
-  >[0]
-
-  context.executionCtx.waitUntil(
-    context.env.KEYS_01.put(
-      payload.address.toLowerCase(),
-      JSON.stringify({
-        ...result,
-        account: payload.address.toLowerCase(),
-        /**
-         * NOTE: this is not secure. In production, you should encrypt any sensitive data before storing it.
-         * See https://oxlib.sh/api/AesGcm
-         */
-        privateKey,
-        publicKey,
-      }),
-    ),
-  )
-
-  return context.json(result)
 })
 
 /**
@@ -127,19 +82,28 @@ app.post('/keys', async (context) => {
  * The transaction are sent by the key owner
  */
 app.post('/schedule', async (context) => {
-  const action = context.req.query('action')
-  const schedule = context.req.query('schedule')?.replaceAll('+', ' ')
-
-  if (!action || !actions.includes(action)) {
-    return context.json({ error: 'Invalid action' }, 400)
+  const account = context.req.query('address')
+  if (!account || !Address.validate(account)) {
+    throw new HTTPException(400, { message: 'Invalid address' })
   }
 
-  const { address } = await context.req.json<{ address: Address.Address }>()
-  if (!address) return context.json({ error: 'Invalid address' }, 400)
+  const { action, schedule } = await context.req.json<{
+    action: string
+    schedule: string
+  }>()
 
-  const storedKey = await context.env.KEYS_01.get(address.toLowerCase())
-  if (!storedKey) throw new Error('Key not found')
-  const { privateKey, account, ...key } = Json.parse(storedKey)
+  if (!action || !actions.includes(action)) {
+    throw new HTTPException(400, { message: 'Invalid action' })
+  }
+
+  const storedKey = await ServerKeyPair.getFromKV(context.env, {
+    address: account,
+  })
+  if (!storedKey) throw new HTTPException(400, { message: 'Key not found' })
+  const { expiry, role } = storedKey
+  if (expiry && expiry < Math.floor(Date.now() / 1000)) {
+    throw new HTTPException(400, { message: 'Key expired' })
+  }
 
   const calls = buildActionCall({ action, account })
 
@@ -147,15 +111,18 @@ app.post('/schedule', async (context) => {
     /* sql */ `
     INSERT INTO schedules ( address, schedule, action, calls ) VALUES ( ?, ?, ?, ? )`,
   )
-    .bind(address.toLowerCase(), schedule, action, Json.stringify(calls))
+    .bind(account.toLowerCase(), schedule, action, Json.stringify(calls))
     .all()
 
   if (!insertSchedule.success) {
-    return context.json({ error: insertSchedule.error }, 500)
+    console.info('insertSchedule', insertSchedule)
+    throw new HTTPException(500, { message: insertSchedule.error })
   }
 
-  return context.json(insertSchedule)
+  return context.json(insertSchedule.success)
 })
+
+app.route('/debug', debugApp)
 
 export default {
   fetch: app.fetch,

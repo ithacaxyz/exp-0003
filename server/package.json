@@ -14,6 +14,7 @@
     "typecheck": "tsc --noEmit --project tsconfig.json"
   },
   "dependencies": {
+    "@hono/cloudflare-access": "^0.2.0",
     "@wagmi/core": "catalog:",
     "hono": "^4.7.0",
     "ox": "catalog:",

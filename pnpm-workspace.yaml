@@ -4,8 +4,8 @@ packages:
 
 catalog:
   ox: "^0.6.9"
-  viem: "^2.23.0"
-  porto: "^0.0.11"
+  viem: "^2.23.1"
+  porto: "^0.0.12"
   wagmi: "^2.14.11"
   wrangler: "^3.107.3"
   typescript: "^5.7.3"

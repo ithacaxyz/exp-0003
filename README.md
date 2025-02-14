@@ -18,21 +18,20 @@
 
 ## Getting Started
 
+### Prerequisites
+
 ```shell
 # install / update pnpm
 npm install --global pnpm@latest
-
 # install dependencies 
 pnpm install
-
-# start worker and client dev
-pnpm --filter='server' --filter='client' dev
-
-# build both
-pnpm --filter='server' --filter='client' build
 ```
 
-If you want to deploy the worker or the client or both, check the next sections.
+### Start dev for worker and client
+
+```shell
+pnpm --filter='server' --filter='client' dev
+```
 
 ## Deploying
 
@@ -42,7 +41,7 @@ If you want to deploy the worker or the client or both, check the next sections.
 - `wrangler` CLI: `pnpm add --global wrangler@latest`,
 - authenticate with `wrangler login`
 
-Deploy client
+### Deploy client
 
 ```shell
 cd client
@@ -51,7 +50,7 @@ pnpm build
 pnpm wrangler deploy dist --config='wrangler.toml'
 ```
 
-Deploy worker
+### Deploy worker
 
 ```shell
 cd server
