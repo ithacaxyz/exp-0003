@@ -41,12 +41,15 @@ export function useDebug({
   enabled?: boolean
 }) {
   const { address: _address = address } = useAccount()
+
   return useQuery<DebugData>({
     queryKey: ['debug', address],
     refetchInterval: (_) => 5_000,
     enabled: !!address && Address.validate(address) && enabled,
     queryFn: async () => {
-      const response = await fetch(`${SERVER_URL}/debug?address=${address}`)
+      const response = await fetch(
+        `${SERVER_URL}/debug?address=${address?.toLowerCase()}`,
+      )
       const result = await Json.parse(await response.text())
       return result as DebugData
     },

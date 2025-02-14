@@ -9,6 +9,9 @@
   "[json]": {
     "editor.defaultFormatter": "biomejs.biome"
   },
+  "[jsonc]": {
+    "editor.defaultFormatter": "biomejs.biome"
+  },
   "[javascript]": {
     "editor.defaultFormatter": "biomejs.biome"
   },
@@ -24,6 +27,9 @@
   "[markdown]": {
     "editor.defaultFormatter": "yzhang.markdown-all-in-one"
   },
+  "[html]": {
+    "editor.defaultFormatter": "vscode.html-language-features"
+  },
   "files.exclude": {
     "**/.wrangler": true
   },
@@ -35,6 +41,7 @@
     ".dev.vars.example": "dotenv"
   },
   "search.exclude": {
+    "**/dist": true,
     "pnpm-lock.yaml": true,
     "**/node_modules": true
   }

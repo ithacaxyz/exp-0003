@@ -1,41 +1,13 @@
-import { parseEther } from 'viem'
 import { Hooks } from 'porto/wagmi'
-import { SERVER_URL } from './constants.ts'
 import { porto, wagmiConfig } from './config.ts'
 import { ExperimentERC20 } from './contracts.ts'
 import { useAccount, useConnectors } from 'wagmi'
 import { truncateHexString } from './utilities.ts'
-import { type Errors, Hex, Json, Value } from 'ox'
+import { type Errors, type Hex, Json, Value } from 'ox'
+import { SERVER_URL, permissions } from './constants.ts'
 import { useEffect, useState, useSyncExternalStore } from 'react'
 import { useCallsStatus, useSendCalls } from 'wagmi/experimental'
 import { useBalance, useClearLocalStorage, useDebug } from './hooks.ts'
-
-const permissions = {
-  expiry: Math.floor(Date.now() / 1_000) + 60 * 60, // 1 hour
-  permissions: {
-    calls: [
-      {
-        signature: 'mint(address,uint256)',
-        to: ExperimentERC20.address[0],
-      },
-      {
-        signature: 'approve(address,uint256)',
-        to: ExperimentERC20.address[0],
-      },
-      {
-        signature: 'transfer(address,uint256)',
-        to: ExperimentERC20.address[0],
-      },
-    ],
-    spend: [
-      {
-        period: 'minute',
-        token: ExperimentERC20.address[0],
-        limit: Hex.fromNumber(Value.fromEther('500000')),
-      },
-    ],
-  },
-} as const
 
 export function App() {
   useClearLocalStorage()
@@ -47,7 +19,6 @@ export function App() {
       <details>
         <summary style={{ fontSize: '1.25rem' }}>State</summary>
         <State />
-        <GetCapabilities />
       </details>
       <details>
         <summary style={{ fontSize: '1.25rem', marginTop: '1rem' }}>
@@ -77,115 +48,151 @@ function DebugLink() {
     ...(address ? { address } : {}),
   })
 
+  if (!address && !import.meta.env.DEV) return null
+
   return (
-    <a
-      target="_blank"
-      rel="noreferrer"
-      href={`${SERVER_URL}/debug?${searchParams.toString()}`}
+    <div
       style={{
+        top: 200,
+        right: 0,
+        gap: '3px',
+        padding: '0px',
+        display: 'flex',
         position: 'fixed',
-        top: '0',
-        right: '0',
-        padding: '5px',
-        backgroundColor: 'white',
-        fontWeight: '700',
-        fontSize: '1.25rem',
-        textDecoration: 'none',
-        zIndex: 1,
+        paddingTop: '5px',
+        alignItems: 'flex-end',
+        flexDirection: 'column',
       }}
     >
-      DEBUG
-    </a>
+      <a
+        target="_blank"
+        rel="noreferrer"
+        href={`${SERVER_URL}/debug?${searchParams.toString()}`}
+        style={{
+          padding: '6px',
+          color: 'white',
+          fontWeight: '700',
+          fontSize: '1.25rem',
+          textAlign: 'center',
+          textDecoration: 'none',
+          backgroundColor: 'black',
+        }}
+      >
+        DEBUG
+      </a>
+      <a
+        target="_blank"
+        rel="noreferrer"
+        hidden={!import.meta.env.DEV}
+        href={`${SERVER_URL}/__scheduled?cron=*+*+*+*+*`}
+        style={{
+          padding: '6px',
+          color: 'white',
+          fontWeight: '700',
+          fontSize: '1.25rem',
+          textDecoration: 'none',
+          backgroundColor: 'black',
+        }}
+      >
+        SIMULATE CRON
+      </a>
+    </div>
   )
 }
 
 function Connect() {
-  const label = `offline-tx-support-${Math.floor(Date.now() / 1_000)}`
+  const label = `_exp-0003-${Math.floor(Date.now() / 1_000)}`
   const [grantPermissions, setGrantPermissions] = useState<boolean>(true)
 
   const connectors = useConnectors()
+  const connector = connectors.find((x) => x.id === 'xyz.ithaca.porto')
 
+  const { address } = useAccount()
   const connect = Hooks.useConnect()
   const disconnect = Hooks.useDisconnect()
-  const permissions_ = Hooks.usePermissions()
+  const allPermissions_ = Hooks.usePermissions()
+  const latestPermissions = allPermissions_.data?.at(-1)
+
+  const disconnectFromAll = async () => {
+    await Promise.all(connectors.map((c) => c.disconnect().catch(() => {})))
+    await disconnect.mutateAsync({ connector })
+  }
 
   return (
     <div>
-      <h3>[client] wallet_connect</h3>
+      <div
+        style={{
+          gap: '10px',
+          display: 'flex',
+          marginBottom: '0px',
+          alignItems: 'flex-end',
+        }}
+      >
+        <h3 style={{ marginBottom: '0px' }}>[client] wallet_connect</h3>|
+        <p style={{ marginBottom: '0px' }}>{connect.status}</p>
+      </div>
       <p>
         <input
           type="checkbox"
           checked={grantPermissions}
           onChange={() => setGrantPermissions((x) => !x)}
         />
-        Authorize a Session Key
+        Grant Permissions
       </p>
-      {connectors
-        .filter((x) => x.id === 'xyz.ithaca.porto')
-        ?.map((connector) => (
-          <div key={connector.uid} style={{ display: 'flex', gap: '10px' }}>
-            <button
-              key={connector.uid}
-              onClick={() =>
-                connect.mutate({
+
+      {connector && (
+        <div key={connector?.uid} style={{ display: 'flex', gap: '10px' }}>
+          <button
+            key={connector?.uid}
+            onClick={async () =>
+              disconnectFromAll().then(() =>
+                connect.mutateAsync({
                   connector,
                   grantPermissions: grantPermissions ? permissions : undefined,
-                })
-              }
-              type="button"
-            >
-              Login
-            </button>
-            <button
-              onClick={async () => {
-                await Promise.all(
-                  connectors.map((c) => c.disconnect().catch(() => {})),
-                )
-                disconnect.mutateAsync({ connector }).then(() =>
-                  connect.mutateAsync({
-                    connector,
-                    createAccount: { label },
-                    grantPermissions: grantPermissions
-                      ? permissions
-                      : undefined,
-                  }),
-                )
-              }}
-              type="button"
-            >
-              Register
-            </button>
-            <button
-              onClick={async () => {
-                Promise.all(
-                  connectors.map((connector) => {
-                    disconnect.mutate({ connector })
-                  }),
-                )
-              }}
-              type="button"
-            >
-              Disconnect
-            </button>
-          </div>
-        ))}
-      <p>{connect.status}</p>
+                }),
+              )
+            }
+            type="button"
+          >
+            Login
+          </button>
+          <button
+            onClick={async () =>
+              disconnectFromAll().then(() =>
+                connect.mutateAsync({
+                  connector,
+                  createAccount: { label },
+                  grantPermissions: grantPermissions ? permissions : undefined,
+                }),
+              )
+            }
+            type="button"
+          >
+            Register
+          </button>
+          <button onClick={disconnectFromAll} type="button">
+            Disconnect
+          </button>
+        </div>
+      )}
       <p>{connect.error?.message}</p>
-      {JSON.stringify(connect.data, undefined, 2)}
-      {permissions_.data?.map((permission) => (
+      {address && <p>Account: {address}</p>}
+
+      {address && latestPermissions && (
         <details
           style={{ marginTop: '5px' }}
-          key={permission.expiry + permission.id}
+          key={latestPermissions.expiry + latestPermissions.id}
         >
           <summary>
+            <span style={{ marginRight: '8px' }}>Permissions:</span>
             {truncateHexString({
-              address: permission.key.publicKey,
+              address: latestPermissions?.key.publicKey,
               length: 12,
             })}
           </summary>
-          <pre>{JSON.stringify(permission, undefined, 2)}</pre>
+          <pre>{Json.stringify(latestPermissions, undefined, 2)}</pre>
         </details>
-      ))}
+      )}
     </div>
   )
 }
@@ -195,6 +202,7 @@ function RequestKey() {
     type: 'p256'
     expiry: number
     publicKey: Hex.Hex
+    role: 'session' | 'admin'
   } | null>(null)
 
   const { address } = useAccount()
@@ -205,22 +213,20 @@ function RequestKey() {
       <h3>[server] Request Key from Server (GET /keys/:address?expiry)</h3>
       <button
         onClick={async (_) => {
-          const [account] = await porto.provider.request({
-            method: 'eth_accounts',
-          })
-
-          console.info('account', account)
-
+          if (!address) return
           const searchParams = new URLSearchParams({
-            expiry: String(Math.floor(Date.now() / 1000) + 60 * 60),
+            expiry: permissions.expiry.toString(),
           })
           const response = await fetch(
-            `${SERVER_URL}/keys/${account}?${searchParams.toString()}`,
+            `${SERVER_URL}/keys/${address.toLowerCase()}?${searchParams.toString()}`,
           )
 
           const result = await Json.parse(await response.text())
 
-          wagmiConfig.storage?.setItem('keys', Json.stringify(result))
+          await wagmiConfig.storage?.setItem(
+            `${address.toLowerCase()}-keys`,
+            Json.stringify(result),
+          )
           setResult(result)
           refetch()
         }}
@@ -234,7 +240,7 @@ function RequestKey() {
             {truncateHexString({ address: result?.publicKey, length: 12 })} -
             expires: {new Date(result.expiry * 1000).toLocaleString()}
           </summary>
-          <pre>{JSON.stringify(result, undefined, 2)}</pre>
+          <pre>{Json.stringify(result, undefined, 2)}</pre>
         </details>
       ) : null}
     </div>
@@ -242,9 +248,8 @@ function RequestKey() {
 }
 
 function GrantPermissions() {
-  const grantPermissions = Hooks.useGrantPermissions()
-
   const { address } = useAccount()
+  const grantPermissions = Hooks.useGrantPermissions()
   return (
     <div>
       <h3>
@@ -253,8 +258,12 @@ function GrantPermissions() {
       <form
         onSubmit={async (event) => {
           event.preventDefault()
+          if (!address) return
+
           const key = Json.parse(
-            (await wagmiConfig.storage?.getItem('keys')) || '{}',
+            (await wagmiConfig.storage?.getItem(
+              `${address.toLowerCase()}-keys`,
+            )) || '{}',
           ) as { publicKey: Hex.Hex; type: 'p256'; expiry: number }
 
           // if `expry` is present in both `key` and `permissions`, pick the lower value
@@ -284,12 +293,13 @@ function GrantPermissions() {
       {grantPermissions.data ? (
         <details>
           <summary style={{ marginTop: '1rem' }}>
+            Permissions:{' '}
             {truncateHexString({
               address: grantPermissions.data?.key.publicKey,
               length: 12,
             })}
           </summary>
-          <pre>{JSON.stringify(grantPermissions.data, undefined, 2)}</pre>
+          <pre>{Json.stringify(grantPermissions.data, undefined, 2)}</pre>
         </details>
       ) : null}
     </div>
@@ -303,7 +313,7 @@ function Mint() {
     id: id as string,
     query: {
       enabled: !!id,
-      refetchInterval({ state }) {
+      refetchInterval: ({ state }) => {
         if (state.data?.status === 'CONFIRMED') return false
         return 1_000
       },
@@ -329,7 +339,7 @@ function Mint() {
                 functionName: 'mint',
                 abi: ExperimentERC20.abi,
                 to: ExperimentERC20.address[0],
-                args: [address!, parseEther('100')],
+                args: [address!, Value.fromEther('100')],
               },
             ],
           })
@@ -428,18 +438,23 @@ function DemoCron() {
             const cron = schedules[schedule]
             if (!cron) return setError('Invalid schedule')
 
-            const searchParams = new URLSearchParams({ address })
+            const searchParams = new URLSearchParams({
+              address: address.toLowerCase(),
+            })
             const url = `${SERVER_URL}/schedule?${searchParams.toString()}`
             const response = await fetch(url, {
               method: 'POST',
               body: Json.stringify({ action, schedule: cron }),
             })
 
-            if (!response.ok) return setError(await response.text())
+            if (!response.ok) {
+              setStatus('error')
+              return setError(await response.text())
+            }
 
-            const result = await Json.parse(await response.text())
-            console.info('result success', result)
+            await Json.parse(await response.text())
             setStatus('success')
+            setError(null)
           } catch (error) {
             const errorMessage =
               error instanceof Error ? error.message : 'unknown error'
@@ -449,7 +464,7 @@ function DemoCron() {
           }
         }}
       >
-        <p>Approve & Transfer 1 EXP</p>
+        <p>Approve & Transfer 5 EXP</p>
         <select
           name="schedule"
           style={{ marginRight: '10px' }}
@@ -467,10 +482,12 @@ function DemoCron() {
           {status === 'pending' ? 'Submitting…' : 'Submit'}
         </button>
       </form>
-      {error ? (
-        <pre style={{ color: '#F43F5E' }}>{error}</pre>
-      ) : (
-        <pre style={{ color: 'lightgray' }}>No errors</pre>
+      {error && (
+        <pre style={{ color: '#F43F5E' }}>
+          {error}
+          <br />
+          Try again in a few seconds
+        </pre>
       )}
       <ul style={{ paddingLeft: 10 }}>
         {debugData
@@ -481,18 +498,18 @@ function DemoCron() {
                     🔑 PUBLIC KEY:{' '}
                     {truncateHexString({
                       address: transaction.public_key,
-                      length: 12,
+                      length: 6,
                     })}{' '}
                     | TYPE: {transaction.role}
                   </p>
-                  <span>🔗 </span>
+                  <span>🔗 TX HASH: </span>
                   <a
                     target="_blank"
                     rel="noreferrer"
                     href={`https://odyssey-explorer.ithaca.xyz/tx/${transaction.hash}`}
                   >
                     {truncateHexString({
-                      length: 26,
+                      length: 12,
                       address: transaction.hash,
                     })}
                   </a>
@@ -564,27 +581,7 @@ function Events() {
   return (
     <div>
       <h3>Events</h3>
-      <pre>{JSON.stringify(responses, null, 2)}</pre>
-    </div>
-  )
-}
-
-function GetCapabilities() {
-  const [result, setResult] = useState<Record<string, unknown> | null>(null)
-  return (
-    <div>
-      <h3>wallet_getCapabilities</h3>
-      <button
-        onClick={() =>
-          porto.provider
-            .request({ method: 'wallet_getCapabilities' })
-            .then(setResult)
-        }
-        type="button"
-      >
-        Get Capabilities
-      </button>
-      {result ? <pre>{JSON.stringify(result, null, 2)}</pre> : null}
+      <pre>{Json.stringify(responses, null, 2)}</pre>
     </div>
   )
 }

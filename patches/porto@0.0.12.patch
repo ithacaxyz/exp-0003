@@ -1,0 +1,15 @@
+diff --git a/_dist/core/internal/provider.js b/_dist/core/internal/provider.js
+index 07a39e85c603acee29b4548b093dadcde79a5e5c..ea51b9c0804fa2561607b0c88ff2c198e2f2b008 100644
+--- a/_dist/core/internal/provider.js
++++ b/_dist/core/internal/provider.js
+@@ -374,9 +374,7 @@ export function from(parameters) {
+                     const [parameters] = request.params;
+                     const { chainId, from, version = '1.0' } = parameters;
+                     const client = getClient(chainId);
+-                    const account = from
+-                        ? state.accounts.find((account) => Address.isEqual(account.address, from))
+-                        : state.accounts[0];
++                    const account = from ?? state.accounts[0];
+                     if (!account)
+                         throw new ox_Provider.UnauthorizedError();
+                     if (chainId && Hex.toNumber(chainId) !== client.chain.id)

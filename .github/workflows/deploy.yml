@@ -1,5 +1,6 @@
 name: Deploy
 
+
 on:
   workflow_dispatch:
   push:
@@ -33,22 +34,21 @@ jobs:
           node-version: 'lts/*'
 
       - name: 'Install Dependencies'
-        run: pnpm install
+        run: pnpm install --frozen-lockfile
 
-      - name: 'Lint, Check'
+      - name: 'Lint, Check, Build'
         run: |
           pnpm dlx @biomejs/biome check . --reporter='github'
-          # disabled until https://github.com/ithacaxyz/porto/pull/37 is merged
-          # pnpm typecheck 
+          pnpm build
+          pnpm typecheck
 
       - name: '🔸 Cloudflare Workers - Deploy Server'
         working-directory: 'server'
-        continue-on-error: true
         env:
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
         run: |
-          pnpm dlx wrangler@latest deploy --env='production' --config='wrangler.toml'
+          pnpm dlx wrangler@latest deploy --config='wrangler.toml' --env='production' --keep-vars
 
       - name: '🔸 Cloudflare Workers - Deploy Client'
         working-directory: 'client'
@@ -56,5 +56,4 @@ jobs:
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
         run: |
-          pnpm build
           pnpm dlx wrangler@latest deploy --config='wrangler.toml'

@@ -1,8 +1,7 @@
 import { Hono } from 'hono'
-import { Address } from 'ox'
+import type { Address } from 'ox'
 import { showRoutes } from 'hono/dev'
-import { ServerKeyPair } from './kv-keys'
-import { basicAuth } from 'hono/basic-auth'
+import { ServerKeyPair } from './keys'
 import { getConnInfo } from 'hono/cloudflare-workers'
 
 const debugApp = new Hono<{ Bindings: Env }>()
@@ -12,35 +11,48 @@ const debugApp = new Hono<{ Bindings: Env }>()
  * If `address` is provided, returns the values for the given address
  * Otherwise, returns all keys, schedules & transactions
  */
-// this path is `/debug`
-debugApp
-  .get('/', async (context) => {
-    showRoutes(debugApp, { colorize: true })
-    const { remote } = getConnInfo(context)
-    const address = context.req.query('address')
+debugApp.get('/', async (context) => {
+  if (context.env.ENVIRONMENT === 'development') {
+    showRoutes(debugApp, {
+      colorize: context.env.ENVIRONMENT === 'development',
+    })
+  }
+  const { remote } = getConnInfo(context)
+  const address = context.req.query('address')
 
-    const keys = await ServerKeyPair['~listFromKV'](context.env)
+  if (address) {
+    const key = await ServerKeyPair.getFromStore(context.env, { address })
     const statements = [
-      context.env.DB.prepare(`SELECT * FROM transactions;`),
-      context.env.DB.prepare(`SELECT * FROM schedules;`),
+      context.env.DB.prepare(
+        /* sql */ `SELECT * FROM transactions WHERE address = ?;`,
+      ).bind(address.toLowerCase()),
+      context.env.DB.prepare(
+        /* sql */ `SELECT * FROM schedules WHERE address = ?;`,
+      ).bind(address.toLowerCase()),
     ]
     const [transactions, schedules] = await context.env.DB.batch(statements)
     return context.json({
-      transactions: transactions?.results,
-      schedules: schedules?.results,
-      keys,
       remote,
+      keys: key ? [key] : [],
+      schedules: schedules?.results,
+      transactions: transactions?.results,
     })
+  }
+
+  const keys = await ServerKeyPair['~listFromStore'](context.env)
+  const statements = [
+    context.env.DB.prepare(`SELECT * FROM transactions;`),
+    context.env.DB.prepare(`SELECT * FROM schedules;`),
+  ]
+  const [transactions, schedules] = await context.env.DB.batch(statements)
+  return context.json({
+    remote,
+    keys,
+    schedules: schedules?.results,
+    transactions: transactions?.results,
   })
-  .get('/:address?', async (context) => {
-    const { address } = context.req.param()
-    console.info('address', address)
-    if (!address || !Address?.validate(address)) {
-      return context.json({ error: 'Invalid address' }, 400)
-    }
-    const key = await ServerKeyPair.getFromKV(context.env, { address })
-    return context.json({ key })
-  })
+})
+
 /**
  * Nuke a key
  * Deletes the key from the database and the KV store
@@ -51,10 +63,14 @@ debugApp.post('/nuke', async (context) => {
     address: Address.Address
   }>()
   try {
-    await ServerKeyPair.deleteFromKV(context.env, { address })
-    await context.env.DB.prepare(`DELETE FROM transactions WHERE address = ?`)
-      .bind(address.toLowerCase())
-      .all()
+    context.executionCtx.waitUntil(
+      Promise.all([
+        ServerKeyPair.deleteFromStore(context.env, { address }),
+        context.env.DB.prepare(`DELETE FROM transactions WHERE address = ?;`)
+          .bind(address.toLowerCase())
+          .all(),
+      ]),
+    )
 
     return context.json({ success: true })
   } catch (error) {
@@ -65,22 +81,25 @@ debugApp.post('/nuke', async (context) => {
 })
 
 // nuke all keys, schedules and transactions
-debugApp.get(
-  '/nuke-everything',
-  basicAuth({
-    username: 'admin',
-    password: 'admin',
-  }),
-  async (context) => {
+debugApp.get('/nuke-everything', async (context) => {
+  if (context.env.ENVIRONMENT !== 'development') {
+    return context.json({ error: 'Not allowed in production' }, 403)
+  }
+
+  try {
     context.executionCtx.waitUntil(
       Promise.all([
-        ServerKeyPair.deleteAllFromKV(context.env),
+        ServerKeyPair.deleteAllFromStore(context.env),
         context.env.DB.prepare(`DELETE FROM transactions;`).all(),
         context.env.DB.prepare(`DELETE FROM schedules;`).all(),
       ]),
     )
     return context.json({ success: true })
-  },
-)
+  } catch (error) {
+    const errorMessage = error instanceof Error ? error.message : error
+    console.error(errorMessage)
+    return context.json({ success: false, error: errorMessage }, 500)
+  }
+})
 
 export { debugApp }

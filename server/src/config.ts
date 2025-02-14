@@ -1,4 +1,4 @@
-import { Implementation, Porto } from 'Porto'
+import { Implementation, Porto } from 'porto'
 import { odysseyTestnet } from 'porto/Chains'
 
 export const porto = Porto.create({

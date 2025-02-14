@@ -4,10 +4,8 @@ packages:
 
 catalog:
   ox: "^0.6.9"
-  viem: "^2.23.1"
   porto: "^0.0.12"
   wagmi: "^2.14.11"
-  wrangler: "^3.107.3"
+  wrangler: "^3.109.1"
   typescript: "^5.7.3"
-  '@wagmi/core': "^2.16.4"
-  '@types/node': "^22.13.1"
+  '@types/node': "^22.13.4"

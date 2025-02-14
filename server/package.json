@@ -15,14 +15,13 @@
   },
   "dependencies": {
     "@hono/cloudflare-access": "^0.2.0",
-    "@wagmi/core": "catalog:",
-    "hono": "^4.7.0",
+    "hono": "^4.7.1",
     "ox": "catalog:",
-    "porto": "catalog:",
-    "viem": "catalog:"
+    "porto": "catalog:"
   },
   "devDependencies": {
-    "@cloudflare/workers-types": "^4.20250204.0",
+    "@cloudflare/workers-types": "^4.20250214.0",
+    "@types/node": "catalog:",
     "typescript": "catalog:",
     "wrangler": "catalog:"
   }

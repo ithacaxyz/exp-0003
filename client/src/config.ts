@@ -1,9 +1,8 @@
 import { Implementation, Porto } from 'porto'
-import { createClient, custom } from 'viem'
-import { http, createConfig, createStorage } from 'wagmi'
 import { odysseyTestnet } from 'wagmi/chains'
+import { http, createConfig, createStorage } from 'wagmi'
 
-const DISABLE_DIALOG = import.meta.env.VITE_DISABLE_DIALOG === 'true'
+const DISABLE_DIALOG = true // we're introducing dialog as own feature in own blog post
 
 const implementation = DISABLE_DIALOG
   ? Implementation.local()
@@ -19,8 +18,4 @@ export const wagmiConfig = createConfig({
   transports: {
     [odysseyTestnet.id]: http(),
   },
-})
-
-export const client = createClient({
-  transport: custom(porto.provider),
 })

@@ -20,6 +20,11 @@
     "typescript": "catalog:",
     "wrangler": "catalog:"
   },
-  "packageManager": "pnpm@10.3.0",
+  "pnpm": {
+    "patchedDependencies": {
+      "porto@0.0.12": "patches/porto@0.0.12.patch"
+    }
+  },
+  "packageManager": "pnpm@10.4.0",
   "license": "MIT"
 }
