@@ -13,10 +13,11 @@ const debugApp = new Hono<{ Bindings: Env }>()
  * Otherwise, returns all keys, schedules & transactions
  */
 // this path is `/debug`
-debugApp.get('/', async (context) => {
-  showRoutes(debugApp, { colorize: true })
-  const { remote } = getConnInfo(context)
-  const address = context.req.query('address')
+debugApp
+  .get('/', async (context) => {
+    showRoutes(debugApp, { colorize: true })
+    const { remote } = getConnInfo(context)
+    const address = context.req.query('address')
 
     const keys = await ServerKeyPair['~listFromKV'](context.env)
     const statements = [
@@ -30,16 +31,16 @@ debugApp.get('/', async (context) => {
       keys,
       remote,
     })
-})
-.get('/:address?', async context => {
-  const { address } = context.req.param()
-  console.info('address', address)
-  if (!address || !Address?.validate(address)) {
-    return context.json({ error: 'Invalid address' }, 400)
-  }
-  const key = await ServerKeyPair.getFromKV(context.env, { address })
-  return context.json({ key })
-})
+  })
+  .get('/:address?', async (context) => {
+    const { address } = context.req.param()
+    console.info('address', address)
+    if (!address || !Address?.validate(address)) {
+      return context.json({ error: 'Invalid address' }, 400)
+    }
+    const key = await ServerKeyPair.getFromKV(context.env, { address })
+    return context.json({ key })
+  })
 /**
  * Nuke a key
  * Deletes the key from the database and the KV store
@@ -62,7 +63,6 @@ debugApp.post('/nuke', async (context) => {
     return context.json({ error: errorMessage }, 500)
   }
 })
-
 
 // nuke all keys, schedules and transactions
 debugApp.get(

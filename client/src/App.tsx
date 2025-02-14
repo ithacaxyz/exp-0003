@@ -29,7 +29,7 @@ const permissions = {
     ],
     spend: [
       {
-        period: 'hour',
+        period: 'minute',
         token: ExperimentERC20.address.at(0),
         limit: Hex.fromNumber(Value.fromEther('500000')),
       },
@@ -94,7 +94,7 @@ function DebugLink() {
 }
 
 function Connect() {
-  const label = `offline-tx-support-${Math.floor(Date.now() / 1000)}`
+  const label = `offline-tx-support-${Math.floor(Date.now() / 1_000)}`
   const [grantPermissions, setGrantPermissions] = useState<boolean>(true)
 
   const connectors = useConnectors()
@@ -192,8 +192,6 @@ function RequestKey() {
   } | null>(null)
 
   const { address } = useAccount()
-
-  console.info('address', address)
 
   const { refetch } = useDebug({ enabled: result !== null, address })
   return (
@@ -428,12 +426,12 @@ function DemoCron() {
             const url = `${SERVER_URL}/schedule?${searchParams.toString()}`
             const response = await fetch(url, {
               method: 'POST',
-              body: JSON.stringify({ action, schedule: cron }),
+              body: Json.stringify({ action, schedule: cron }),
             })
 
-            if (!response.ok) return setError(await response.json())
+            if (!response.ok) return setError(await response.text())
 
-            const result = await response.json()
+            const result = await Json.parse(await response.text())
             console.info('result success', result)
             setStatus('success')
           } catch (error) {

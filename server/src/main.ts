@@ -1,22 +1,18 @@
 import { Hono } from 'hono'
 import { cors } from 'hono/cors'
-import { csrf } from 'hono/csrf'
-import { Address, Json, type Hex } from 'ox'
 import { logger } from 'hono/logger'
-import { showRoutes } from 'hono/dev'
 import { porto } from './config.ts'
 import { debugApp } from './debug.ts'
 import { requestId } from 'hono/request-id'
+import { Address, Json, type Hex } from 'ox'
 import { ServerKeyPair } from './kv-keys.ts'
 import { prettyJSON } from 'hono/pretty-json'
 import { scheduledTask } from './scheduled.ts'
 import { HTTPException } from 'hono/http-exception'
-import { getConnInfo } from 'hono/cloudflare-workers'
 import { actions, buildActionCall } from './calls.ts'
 
 const app = new Hono<{ Bindings: Env }>()
 
-app.use(csrf())
 app.use(logger())
 app.use(prettyJSON({ space: 2 }))
 app.use('*', requestId({ headerName: 'EXP0003-Request-Id' }))
