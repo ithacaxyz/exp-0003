@@ -8,7 +8,7 @@ export const ServerKeyPair = {
     env: Env,
     {
       address,
-      role = 'admin',
+      role = 'session',
       expiry = Math.floor(Date.now() / 1_000) + 3_600, // 1 hour by default
     }: { address: string; expiry?: number; role?: 'session' | 'admin' },
   ): Promise<GeneratedKeyPair> => {
