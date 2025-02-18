@@ -1,4 +1,4 @@
-# EXP-0003: Offline Actions
+# EXP-0003: 
 
 ![Cover](./.github/cover.svg)
 
@@ -52,13 +52,20 @@ npm install --global pnpm@latest
 pnpm install
 ```
 
-### Setup Server database (Cloudflare D1)
+Setup environment variables
 
 ```shell
-# create database
-# this will fail if the database already exists
+# replace values with your own cloudflare account id and API token
+cp .env.example .env
+```
+
+### Setup Server database (Cloudflare D1)
+
+
+```shell
+# create database (this will fail if the database already exists)
 pnpm --filter='server' db:create
-# run the next command to bootstrap the existing database.
+# bootstrap the existing database.
 pnpm --filter='server' db:bootstrap
 ```
 
