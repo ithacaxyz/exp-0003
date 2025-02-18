@@ -6,6 +6,6 @@ catalog:
   ox: "^0.6.9"
   porto: "^0.0.12"
   wagmi: "^2.14.11"
-  wrangler: "^3.109.1"
+  wrangler: "^3.109.2"
   typescript: "^5.7.3"
   '@types/node': "^22.13.4"
