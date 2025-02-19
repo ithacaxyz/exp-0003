@@ -497,8 +497,6 @@ function DemoScheduler() {
             }
 
             await Json.parse(await response.text())
-            // setStatus('success')
-            // setError(null)
 
             const workflowResponse = await fetch(
               `${SERVER_URL}/workflow/${address.toLowerCase()}?count=${count ?? 6}`,

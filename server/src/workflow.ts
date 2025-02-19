@@ -55,7 +55,7 @@ export class Workflow01 extends WorkflowEntrypoint<Env, Params> {
           retries: {
             backoff: 'constant',
             delay: '10 seconds',
-            limit: event.payload.count - 1,
+            limit: Math.min(event.payload.count - 1, 6),
           },
         },
         async () => {
@@ -132,15 +132,7 @@ export class Workflow01 extends WorkflowEntrypoint<Env, Params> {
         /* sql */ `DELETE FROM schedules WHERE address = ?;`,
       ).bind(event.payload.keyPair.address)
 
-      // const deleteKeyPairStatement = this.env.DB.prepare(
-      //   /* sql */ `DELETE FROM keypairs WHERE address = ?;`,
-      // ).bind(event.payload.keyPair.address)
-
-      await this.env.DB.batch([
-        //
-        deleteScheduleStatement,
-        // deleteKeyPairStatement,
-      ])
+      await this.env.DB.batch([deleteScheduleStatement])
     })
   }
 }

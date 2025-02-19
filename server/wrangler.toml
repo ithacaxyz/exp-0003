@@ -60,3 +60,8 @@ class_name = "Scheduler"
 # Should be unique for each entry
 tag = "v1"
 new_classes = ["Scheduler"]
+
+[[env.production.workflows]]
+name = "WORKFLOW_01"
+binding = "WORKFLOW_01"
+class_name = "Workflow01"
