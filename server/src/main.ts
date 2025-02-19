@@ -3,7 +3,9 @@ import { cors } from 'hono/cors'
 import { porto } from './config.ts'
 import { logger } from 'hono/logger'
 import { debugApp } from './debug.ts'
+import type { Env } from './types.ts'
 import { ServerKeyPair } from './keys.ts'
+import { Scheduler } from './scheduler.ts'
 import { requestId } from 'hono/request-id'
 import { Address, Json, type Hex } from 'ox'
 import { prettyJSON } from 'hono/pretty-json'
@@ -173,11 +175,14 @@ app.post('/schedule', async (context) => {
   })
 })
 
+app.get('/init', async (context) => {
+  const scheduler = context.env.SCHEDULER.idFromName('scheduler')
+  const schedulerStub = context.env.SCHEDULER.get(scheduler)
+  return await schedulerStub.fetch(context.req.raw)
+})
+
 app.route('/debug', debugApp)
 
-export default {
-  fetch: app.fetch,
-  scheduled: async (event, env, context): Promise<void> => {
-    context.waitUntil(scheduledTask(event, env, context))
-  },
-} satisfies ExportedHandler<Env>
+export { Scheduler }
+
+export default app satisfies ExportedHandler<Env>

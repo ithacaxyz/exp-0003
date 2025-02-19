@@ -1,4 +1,11 @@
 import type { Hex } from 'ox'
+import type { Scheduler } from './scheduler.ts'
+
+export interface Env {
+  DB: D1Database
+  ENVIRONMENT: 'development' | 'production'
+  SCHEDULER: DurableObjectNamespace<Scheduler>
+}
 
 interface BaseAttributes {
   id: number

@@ -25,8 +25,14 @@ binding = "DB"
 database_name = "offline-demo-txs"
 database_id = "80b220b8-9f1d-4179-8383-ddeeeac6fcf0"
 
-[triggers]
-crons = ["* * * * *"]
+[[durable_objects.bindings]]
+name = "SCHEDULER"
+class_name = "Scheduler"
+
+[[migrations]]
+# Should be unique for each entry
+tag = "v1"
+new_classes = ["Scheduler"]
 
 [env.production]
 name = "exp-0003-server"

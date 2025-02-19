@@ -1,9 +1,10 @@
 import * as React from 'react'
+import { queryClient } from './config.ts'
 import { SERVER_URL } from './constants.ts'
 import { ExperimentERC20 } from './contracts.ts'
+import { useQuery } from '@tanstack/react-query'
 import { useAccount, useReadContract } from 'wagmi'
 import { Address, type Hex, Json, Value } from 'ox'
-import { useQuery, useQueryClient } from '@tanstack/react-query'
 
 export function useBalance() {
   const { address } = useAccount()
@@ -31,6 +32,14 @@ export interface DebugData {
     account: Address.Address
     privateKey: Address.Address
   }
+  schedules: Array<{
+    id: number
+    created_at: string
+    address: Address.Address
+    schedule: string
+    action: string
+    calls: string
+  }>
 }
 
 export function useDebug({
@@ -57,14 +66,20 @@ export function useDebug({
 }
 
 export function useClearLocalStorage() {
-  const queryClient = useQueryClient()
-
-  // biome-ignore lint/correctness/useExhaustiveDependencies: no need
   React.useEffect(() => {
     // on `d` press
     window.addEventListener('keydown', (event) => {
-      if (event.key === 'd') {
-        // clear everything
+      if (event.key === 'd') nukeEverything()
+    })
+  }, [])
+}
+
+export function nukeEverything() {
+  try {
+    if (import.meta.env.MODE !== 'development') return
+    // clear everything
+    fetch(`${SERVER_URL}/debug/nuke-everything`)
+      .then(() => {
         queryClient.clear()
         queryClient.resetQueries()
         queryClient.removeQueries()
@@ -73,7 +88,10 @@ export function useClearLocalStorage() {
         window.localStorage.clear()
         window.sessionStorage.clear()
         window.location.reload()
-      }
-    })
-  }, [])
+      })
+      .catch(() => {})
+  } catch (error) {
+    const errorMessage = error instanceof Error ? error.message : error
+    console.error(errorMessage)
+  }
 }

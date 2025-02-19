@@ -1,6 +1,4 @@
-interface Env {
-  DB: D1Database
-  KEYS_01: KVNamespace
+interface Environment {
   ENVIRONMENT: 'development' | 'production'
 }
 

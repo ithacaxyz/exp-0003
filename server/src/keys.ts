@@ -1,5 +1,5 @@
 import { P256, PublicKey } from 'ox'
-import type { KeyPair } from './types.ts'
+import type { KeyPair, Env } from './types.ts'
 
 type GeneratedKeyPair = Omit<KeyPair, 'private_key' | 'id' | 'created_at'>
 
@@ -61,17 +61,26 @@ export const ServerKeyPair = {
 
     if (queryResult) return queryResult
 
-    console.error(`Key pair not found for address: ${address}`)
+    console.info(`no keypair found for address: ${address}`)
     return undefined
   },
 
-  deleteFromStore: async (env: Env, { address }: { address: string }) =>
-    await env.DB.prepare(
+  deleteFromStore: async (env: Env, { address }: { address: string }) => {
+    const deleteKeypair = env.DB.prepare(
       /* sql */
       `DELETE FROM keypairs WHERE address = ?;`,
-    )
-      .bind(address.toLowerCase())
-      .run(),
+    ).bind(address.toLowerCase())
+
+    const deleteSchedule = env.DB.prepare(
+      /* sql */
+      `DELETE FROM schedules WHERE address = ?;`,
+    ).bind(address.toLowerCase())
+
+    return await env.DB.batch<D1PreparedStatement>([
+      deleteKeypair,
+      deleteSchedule,
+    ])
+  },
 
   deleteAllFromStore: async (env: Env) =>
     await env.DB.prepare(/* sql */ `DELETE FROM keypairs;`).run(),

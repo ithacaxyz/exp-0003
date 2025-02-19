@@ -7,7 +7,12 @@ import { type Errors, type Hex, Json, Value } from 'ox'
 import { SERVER_URL, permissions } from './constants.ts'
 import { useEffect, useState, useSyncExternalStore } from 'react'
 import { useCallsStatus, useSendCalls } from 'wagmi/experimental'
-import { useBalance, useClearLocalStorage, useDebug } from './hooks.ts'
+import {
+  nukeEverything,
+  useBalance,
+  useClearLocalStorage,
+  useDebug,
+} from './hooks.ts'
 
 export function App() {
   useClearLocalStorage()
@@ -35,7 +40,7 @@ export function App() {
       <hr />
       <Mint />
       <hr />
-      <DemoCron />
+      <DemoScheduler />
     </main>
   )
 }
@@ -55,12 +60,10 @@ function DebugLink() {
       style={{
         top: 200,
         right: 0,
-        gap: '3px',
         padding: '0px',
         display: 'flex',
         position: 'fixed',
         paddingTop: '5px',
-        alignItems: 'flex-end',
         flexDirection: 'column',
       }}
     >
@@ -71,11 +74,13 @@ function DebugLink() {
         style={{
           padding: '6px',
           color: 'white',
+          width: '100%',
           fontWeight: '700',
-          fontSize: '1.25rem',
-          textAlign: 'center',
           textDecoration: 'none',
           backgroundColor: 'black',
+          borderColor: 'darkgray',
+          borderWidth: '1px',
+          borderStyle: 'solid',
         }}
       >
         DEBUG
@@ -84,18 +89,39 @@ function DebugLink() {
         target="_blank"
         rel="noreferrer"
         hidden={!import.meta.env.DEV}
-        href={`${SERVER_URL}/__scheduled?cron=*+*+*+*+*`}
+        href={`${SERVER_URL}/init`}
         style={{
           padding: '6px',
           color: 'white',
+          width: '100%',
           fontWeight: '700',
-          fontSize: '1.25rem',
           textDecoration: 'none',
           backgroundColor: 'black',
+          borderColor: 'darkgray',
+          borderWidth: '1px',
+          borderStyle: 'solid',
         }}
       >
-        SIMULATE CRON
+        INIT SCHEDULER
       </a>
+      <button
+        hidden={!import.meta.env.DEV}
+        onClick={() => nukeEverything()}
+        type="button"
+        style={{
+          padding: '6px',
+          color: 'white',
+          width: '100%',
+          fontWeight: '700',
+          textDecoration: 'none',
+          backgroundColor: 'black',
+          borderColor: 'darkgray',
+          borderWidth: '1px',
+          borderStyle: 'solid',
+        }}
+      >
+        RESET RECORDS
+      </button>
     </div>
   )
 }
@@ -148,7 +174,9 @@ function Connect() {
               disconnectFromAll().then(() =>
                 connect.mutateAsync({
                   connector,
-                  grantPermissions: grantPermissions ? permissions : undefined,
+                  grantPermissions: grantPermissions
+                    ? permissions()
+                    : undefined,
                 }),
               )
             }
@@ -162,7 +190,9 @@ function Connect() {
                 connect.mutateAsync({
                   connector,
                   createAccount: { label },
-                  grantPermissions: grantPermissions ? permissions : undefined,
+                  grantPermissions: grantPermissions
+                    ? permissions()
+                    : undefined,
                 }),
               )
             }
@@ -210,12 +240,12 @@ function RequestKey() {
   const { refetch } = useDebug({ enabled: result !== null, address })
   return (
     <div>
-      <h3>[server] Request Key from Server (GET /keys/:address?expiry)</h3>
+      <h3>[server] Request Key from Server (GET /keys/:address)</h3>
       <button
         onClick={async (_) => {
           if (!address) return
           const searchParams = new URLSearchParams({
-            expiry: permissions.expiry.toString(),
+            expiry: permissions().expiry.toString(),
           })
           const response = await fetch(
             `${SERVER_URL}/keys/${address.toLowerCase()}?${searchParams.toString()}`,
@@ -238,7 +268,8 @@ function RequestKey() {
         <details>
           <summary style={{ marginTop: '1rem' }}>
             {truncateHexString({ address: result?.publicKey, length: 12 })} -
-            expires: {new Date(result.expiry * 1000).toLocaleString()}
+            expires: {new Date(result.expiry * 1_000).toLocaleString()} (local
+            time)
           </summary>
           <pre>{Json.stringify(result, undefined, 2)}</pre>
         </details>
@@ -267,13 +298,13 @@ function GrantPermissions() {
           ) as { publicKey: Hex.Hex; type: 'p256'; expiry: number }
 
           // if `expry` is present in both `key` and `permissions`, pick the lower value
-          const expiry = Math.min(key.expiry, permissions.expiry)
+          const expiry = Math.min(key.expiry, permissions().expiry)
 
           grantPermissions.mutate({
             key,
             expiry,
             address,
-            permissions: permissions.permissions,
+            permissions: permissions().permissions,
           })
         }}
       >
@@ -378,6 +409,7 @@ function Mint() {
 }
 
 const schedules = {
+  'once every 10 seconds': '*/10 * * * * *',
   'once every minute': '* * * * *',
   'once every hour': '0 * * * *',
   'once every day': '0 0 * * *',
@@ -387,7 +419,7 @@ const schedules = {
 type Schedule = keyof typeof schedules
 
 /* Check server activity */
-function DemoCron() {
+function DemoScheduler() {
   const [status, setStatus] = useState<
     'idle' | 'pending' | 'error' | 'success'
   >('idle')
@@ -399,7 +431,10 @@ function DemoCron() {
   return (
     <div>
       <div style={{ display: 'flex', alignItems: 'center' }}>
-        <h3>[server] Schedule Transactions |</h3>
+        <h3>[server] Schedule Transactions</h3>
+        <p style={{ marginLeft: '6px' }}>
+          | active schedules: {debugData?.schedules?.length} |
+        </p>
         {status !== 'idle' && (
           <span
             style={{
@@ -422,9 +457,9 @@ function DemoCron() {
 
             if (!address) return setError('No address')
 
-            const { expiry } = permissions
+            const { expiry } = permissions()
 
-            if (expiry < Math.floor(Date.now() / 1000)) {
+            if (expiry < Math.floor(Date.now() / 1_000)) {
               setError('Key expired')
               throw new Error('Key expired')
             }
@@ -464,13 +499,16 @@ function DemoCron() {
           }
         }}
       >
-        <p>Approve & Transfer 5 EXP</p>
+        <p>Approve & Transfer 1 EXP</p>
         <select
           name="schedule"
           style={{ marginRight: '10px' }}
-          defaultValue="once every minute"
+          defaultValue="once every 10 seconds"
         >
-          <option value="once every minute">once every minute</option>
+          <option value="once every 10 seconds">once every 10 seconds</option>
+          <option value="once every minute" disabled>
+            once every minute (coming soon)
+          </option>
           <option value="once every hour" disabled>
             once every hour (coming soon)
           </option>

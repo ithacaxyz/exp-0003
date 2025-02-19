@@ -1,5 +1,6 @@
 import { Hono } from 'hono'
 import type { Address } from 'ox'
+import type { Env } from './types'
 import { showRoutes } from 'hono/dev'
 import { ServerKeyPair } from './keys'
 import { getConnInfo } from 'hono/cloudflare-workers'
@@ -13,9 +14,12 @@ const debugApp = new Hono<{ Bindings: Env }>()
  */
 debugApp.get('/', async (context) => {
   if (context.env.ENVIRONMENT === 'development') {
-    showRoutes(debugApp, {
-      colorize: context.env.ENVIRONMENT === 'development',
-    })
+    const verbose = context.req.query('verbose')
+    if (verbose) {
+      showRoutes(debugApp, {
+        colorize: context.env.ENVIRONMENT === 'development',
+      })
+    }
   }
   const { remote } = getConnInfo(context)
   const address = context.req.query('address')
@@ -89,7 +93,7 @@ debugApp.get('/nuke-everything', async (context) => {
   try {
     context.executionCtx.waitUntil(
       Promise.all([
-        ServerKeyPair.deleteAllFromStore(context.env),
+        context.env.DB.prepare(`DELETE FROM keypairs;`).all(),
         context.env.DB.prepare(`DELETE FROM transactions;`).all(),
         context.env.DB.prepare(`DELETE FROM schedules;`).all(),
       ]),
