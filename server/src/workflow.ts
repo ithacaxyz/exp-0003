@@ -9,7 +9,7 @@ import { Hex, Json, P256, Signature } from 'ox'
 import type { Env, KeyPair, Schedule } from './types.ts'
 import { NonRetryableError } from 'cloudflare:workflows'
 
-export class TransactionInsertedFakeError extends Error {
+class TransactionInsertedFakeError extends Error {
   constructor(message: string) {
     super(message)
     this.name = 'TransactionInsertedFakeError'

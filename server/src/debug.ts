@@ -3,6 +3,7 @@ import type { Address } from 'ox'
 import type { Env } from './types'
 import { showRoutes } from 'hono/dev'
 import { ServerKeyPair } from './keys'
+import { basicAuth } from 'hono/basic-auth'
 import { getConnInfo } from 'hono/cloudflare-workers'
 
 const debugApp = new Hono<{ Bindings: Env }>()
@@ -85,25 +86,33 @@ debugApp.post('/nuke', async (context) => {
 })
 
 // nuke all keys, schedules and transactions
-debugApp.get('/nuke-everything', async (context) => {
-  if (context.env.ENVIRONMENT !== 'development') {
-    return context.json({ error: 'Not allowed in production' }, 403)
-  }
-
-  try {
-    context.executionCtx.waitUntil(
-      Promise.all([
-        context.env.DB.prepare(`DELETE FROM keypairs;`).all(),
-        context.env.DB.prepare(`DELETE FROM transactions;`).all(),
-        context.env.DB.prepare(`DELETE FROM schedules;`).all(),
-      ]),
-    )
-    return context.json({ success: true })
-  } catch (error) {
-    const errorMessage = error instanceof Error ? error.message : error
-    console.error(errorMessage)
-    return context.json({ success: false, error: errorMessage }, 500)
-  }
-})
+debugApp.get(
+  '/nuke-everything',
+  basicAuth({
+    verifyUser: (username, password, context) => {
+      if (context.env.ENVIRONMENT === 'development') return true
+      return (
+        username === context.env.ADMIN_USERNAME &&
+        password === context.env.ADMIN_PASSWORD
+      )
+    },
+  }),
+  async (context) => {
+    try {
+      context.executionCtx.waitUntil(
+        Promise.all([
+          context.env.DB.prepare(`DELETE FROM keypairs;`).all(),
+          context.env.DB.prepare(`DELETE FROM transactions;`).all(),
+          context.env.DB.prepare(`DELETE FROM schedules;`).all(),
+        ]),
+      )
+      return context.json({ success: true })
+    } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : error
+      console.error(errorMessage)
+      return context.json({ success: false, error: errorMessage }, 500)
+    }
+  },
+)
 
 export { debugApp }
