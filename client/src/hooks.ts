@@ -75,23 +75,17 @@ export function useClearLocalStorage() {
 }
 
 export function nukeEverything() {
-  try {
-    if (import.meta.env.MODE !== 'development') return
-    // clear everything
-    fetch(`${SERVER_URL}/debug/nuke-everything`)
-      .then(() => {
-        queryClient.clear()
-        queryClient.resetQueries()
-        queryClient.removeQueries()
-        queryClient.invalidateQueries()
-        queryClient.unmount()
-        window.localStorage.clear()
-        window.sessionStorage.clear()
-        window.location.reload()
-      })
-      .catch(() => {})
-  } catch (error) {
-    const errorMessage = error instanceof Error ? error.message : error
-    console.error(errorMessage)
-  }
+  if (import.meta.env.MODE !== 'development') return
+  // clear everything
+  return fetch(`${SERVER_URL}/debug/nuke-everything`)
+    .then(() => {
+      queryClient.clear()
+      queryClient.resetQueries()
+      queryClient.removeQueries()
+      queryClient.invalidateQueries()
+      queryClient.unmount()
+      window.localStorage.clear()
+      window.sessionStorage.clear()
+    })
+    .catch(() => {})
 }

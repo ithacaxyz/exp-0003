@@ -1,9 +1,11 @@
-import type { Hex } from 'ox'
+import type { Address, Hex } from 'ox'
 import type { Scheduler } from './scheduler.ts'
+import type { Params as WorkflowParams } from './workflow.ts'
 
 export interface Env {
-  DB: D1Database
   ENVIRONMENT: 'development' | 'production'
+  DB: D1Database
+  WORKFLOW_01: Workflow<WorkflowParams>
   SCHEDULER: DurableObjectNamespace<Scheduler>
 }
 
@@ -23,7 +25,7 @@ export type Transaction = Pretty<
 
 export type Schedule = Pretty<
   BaseAttributes & {
-    address: string
+    address: Address.Address
     schedule: string
     action: string
     calls: string

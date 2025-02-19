@@ -34,6 +34,11 @@ class_name = "Scheduler"
 tag = "v1"
 new_classes = ["Scheduler"]
 
+[[workflows]]
+name = "WORKFLOW_01"
+binding = "WORKFLOW_01"
+class_name = "Workflow01"
+
 [env.production]
 name = "exp-0003-server"
 workers_dev = true

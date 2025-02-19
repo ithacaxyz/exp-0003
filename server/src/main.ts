@@ -6,6 +6,7 @@ import { debugApp } from './debug.ts'
 import type { Env } from './types.ts'
 import { ServerKeyPair } from './keys.ts'
 import { Scheduler } from './scheduler.ts'
+import { Workflow01 } from './workflow.ts'
 import { requestId } from 'hono/request-id'
 import { Address, Json, type Hex } from 'ox'
 import { prettyJSON } from 'hono/pretty-json'
@@ -29,17 +30,22 @@ app.get('/', (context) =>
 )
 
 app.onError((error, context) => {
-  console.error(`[onError: ${context.req.url}]: ${error}`, context.error)
-  if (error instanceof HTTPException) error.getResponse()
+  const requestId = context.get('requestId')
+  console.error(
+    `[onError: ${requestId} ${context.req.url}]: ${error}`,
+    context.error,
+  )
+  if (error instanceof HTTPException) return error.getResponse()
   const { remote } = getConnInfo(context)
-  return context.json({ error: error.message, remote }, 500)
+  return context.json({ remote, error: error.message, requestId }, 500)
 })
 
 app.notFound((context) => {
-  const errorMessage = `${context.req.url} is not a valid path.`
+  const requestId = context.get('requestId')
+  const errorMessage = `[notFound: ${requestId} ${context.req.url}]: is not a valid path.`
   const { remote } = getConnInfo(context)
   console.error(errorMessage, remote)
-  return context.json({ error: errorMessage, remote }, 404)
+  return context.json({ error: errorMessage, remote, requestId }, 404)
 })
 
 app.get('/keys/:address', async (context) => {
@@ -77,40 +83,6 @@ app.get('/keys/:address', async (context) => {
   const { public_key, role, type } = keyPair
 
   return context.json({ type, publicKey: public_key, expiry, role })
-})
-
-app.post('/revoke', async (context) => {
-  const permission = await context.req.json<{
-    address: Address.Address
-    id: Hex.Hex
-  }>()
-
-  if (permission.address && !Address.validate(permission.address)) {
-    throw new HTTPException(400, {
-      message: `Invalid address: ${Json.stringify(permission, undefined, 2)}`,
-    })
-  }
-
-  if (!permission.id) {
-    throw new HTTPException(400, {
-      message: `Invalid permission id: ${Json.stringify(permission, undefined, 2)}`,
-    })
-  }
-
-  const [_, __, revokeSchedule] = await Promise.all([
-    porto.provider.request({
-      method: 'experimental_revokePermissions',
-      params: [permission],
-    }),
-    ServerKeyPair.deleteFromStore(context.env, {
-      address: permission.address.toLowerCase(),
-    }),
-    context.env.DB.prepare(/* sql */ `DELETE FROM schedules WHERE address = ?`)
-      .bind(permission.address.toLowerCase())
-      .all(),
-  ])
-
-  return context.json({ success: true })
 })
 
 /**
@@ -174,14 +146,41 @@ app.post('/schedule', async (context) => {
   })
 })
 
-app.get('/init', async (context) => {
-  const scheduler = context.env.SCHEDULER.idFromName('scheduler')
-  const schedulerStub = context.env.SCHEDULER.get(scheduler)
-  return await schedulerStub.fetch(context.req.raw)
+app.on(['GET', 'POST'], '/workflow/:address', async (context, _next) => {
+  const { address } = context.req.param()
+  const { count = 6 } = context.req.query()
+
+  if (!Address.validate(address)) {
+    throw new HTTPException(400, { message: 'Invalid address' })
+  }
+
+  if (!count || Number(count) < 1 || Number(count) > 10) {
+    throw new HTTPException(400, {
+      message: `Count must be between 1 and 10. Received: ${count}`,
+    })
+  }
+
+  const keyPair = await ServerKeyPair.getFromStore(context.env, { address })
+
+  if (!keyPair) return context.json({ error: 'Key not found' }, 404)
+
+  if (keyPair.expiry && keyPair.expiry < Math.floor(Date.now() / 1_000)) {
+    await ServerKeyPair.deleteFromStore(context.env, { address })
+    return context.json({ error: 'Key expired and deleted' }, 400)
+  }
+
+  const instance = await context.env.WORKFLOW_01.create({
+    id: `${address}-${keyPair.expiry}-${count}-${Date.now()}`,
+    params: { keyPair, count: Number(count) },
+  })
+
+  console.info('Workflow01 instance created', instance.id)
+
+  return context.json({ id: instance.id, details: await instance.status() })
 })
 
 app.route('/debug', debugApp)
 
-export { Scheduler }
+export { Scheduler, Workflow01 }
 
 export default app satisfies ExportedHandler<Env>

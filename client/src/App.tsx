@@ -1,3 +1,9 @@
+import {
+  useDebug,
+  useBalance,
+  nukeEverything,
+  useClearLocalStorage,
+} from './hooks.ts'
 import { Hooks } from 'porto/wagmi'
 import { porto, wagmiConfig } from './config.ts'
 import { ExperimentERC20 } from './contracts.ts'
@@ -7,12 +13,6 @@ import { type Errors, type Hex, Json, Value } from 'ox'
 import { SERVER_URL, permissions } from './constants.ts'
 import { useEffect, useState, useSyncExternalStore } from 'react'
 import { useCallsStatus, useSendCalls } from 'wagmi/experimental'
-import {
-  nukeEverything,
-  useBalance,
-  useClearLocalStorage,
-  useDebug,
-} from './hooks.ts'
 
 export function App() {
   useClearLocalStorage()
@@ -48,12 +48,13 @@ export function App() {
 function DebugLink() {
   const { address } = useAccount()
 
+  const connectors = useConnectors()
+  const disconnect = Hooks.useDisconnect()
+
   const searchParams = new URLSearchParams({
     pretty: 'true',
     ...(address ? { address } : {}),
   })
-
-  if (!address && !import.meta.env.DEV) return null
 
   return (
     <div
@@ -85,7 +86,7 @@ function DebugLink() {
       >
         DEBUG
       </a>
-      <a
+      {/* <a
         target="_blank"
         rel="noreferrer"
         hidden={!import.meta.env.DEV}
@@ -103,10 +104,16 @@ function DebugLink() {
         }}
       >
         INIT SCHEDULER
-      </a>
+      </a> */}
       <button
         hidden={!import.meta.env.DEV}
-        onClick={() => nukeEverything()}
+        disabled={!import.meta.env.DEV}
+        onClick={async () => {
+          await nukeEverything()
+          await Promise.all(
+            connectors.map((c) => disconnect.mutateAsync({ connector: c })),
+          )
+        }}
         type="button"
         style={{
           padding: '6px',
@@ -186,15 +193,16 @@ function Connect() {
           </button>
           <button
             onClick={async () =>
-              disconnectFromAll().then(() =>
-                connect.mutateAsync({
+              disconnectFromAll().then(() => {
+                nukeEverything()
+                connect.mutate({
                   connector,
                   createAccount: { label },
                   grantPermissions: grantPermissions
                     ? permissions()
                     : undefined,
-                }),
-              )
+                })
+              })
             }
             type="button"
           >
@@ -426,7 +434,7 @@ function DemoScheduler() {
   const [error, setError] = useState<string | null>(null)
   const { address } = useAccount()
 
-  const { data: debugData } = useDebug({ address, enabled: !!address })
+  const { data: debugData, refetch } = useDebug({ address, enabled: !!address })
 
   return (
     <div>
@@ -469,6 +477,7 @@ function DemoScheduler() {
             const action =
               (formData.get('action') as string) ?? 'approve-transfer'
             const schedule = formData.get('schedule') as Schedule
+            const count = formData.get('count') as string
 
             const cron = schedules[schedule]
             if (!cron) return setError('Invalid schedule')
@@ -488,8 +497,17 @@ function DemoScheduler() {
             }
 
             await Json.parse(await response.text())
+            // setStatus('success')
+            // setError(null)
+
+            const workflowResponse = await fetch(
+              `${SERVER_URL}/workflow/${address.toLowerCase()}?count=${count ?? 6}`,
+            )
+            const workflow = await Json.parse(await workflowResponse.text())
+            console.log(workflow)
             setStatus('success')
             setError(null)
+            refetch()
           } catch (error) {
             const errorMessage =
               error instanceof Error ? error.message : 'unknown error'
@@ -516,9 +534,35 @@ function DemoScheduler() {
             once every day (coming soon)
           </option>
         </select>
-        <button type="submit" disabled={status === 'pending'}>
-          {status === 'pending' ? 'Submitting…' : 'Submit'}
-        </button>
+        <div
+          style={{
+            margin: '10px 0',
+            width: '100%',
+            display: 'flex',
+            flexDirection: 'row',
+          }}
+        >
+          <span style={{ margin: 'auto 0', fontSize: '' }}>
+            Total Transactions
+          </span>
+          <input
+            min={1}
+            max={10}
+            name="count"
+            type="number"
+            placeholder="6"
+            defaultValue={6}
+            style={{ width: '40px', margin: '0 20px' }}
+          />
+
+          <button
+            type="submit"
+            disabled={status === 'pending'}
+            style={{ width: '75px', textAlign: 'center' }}
+          >
+            {status === 'pending' ? 'Submitting…' : 'Submit'}
+          </button>
+        </div>
       </form>
       {error && (
         <pre style={{ color: '#F43F5E' }}>
