@@ -9,13 +9,9 @@ export const SERVER_URL =
 
 export const permissions = () =>
   ({
-    expiry: Math.floor(Date.now() / 1_000) + 60 * 2, // 2 minutes
+    expiry: Math.floor(Date.now() / 1_000) + 60 * 60, // 1 hour
     permissions: {
       calls: [
-        {
-          signature: 'mint(address,uint256)',
-          to: ExperimentERC20.address[0],
-        },
         {
           signature: 'approve(address,uint256)',
           to: ExperimentERC20.address[0],
@@ -29,7 +25,7 @@ export const permissions = () =>
         {
           period: 'minute',
           token: ExperimentERC20.address[0],
-          limit: Hex.fromNumber(Value.fromEther('1000000')),
+          limit: Hex.fromNumber(Value.fromEther('1000')),
         },
       ],
     },

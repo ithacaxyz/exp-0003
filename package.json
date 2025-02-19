@@ -16,7 +16,7 @@
   "devDependencies": {
     "@biomejs/biome": "^1.9.4",
     "@types/node": "catalog:",
-    "tsx": "^4.19.2",
+    "tsx": "^4.19.3",
     "typescript": "catalog:",
     "wrangler": "catalog:"
   },
