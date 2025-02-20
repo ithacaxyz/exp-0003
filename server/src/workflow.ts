@@ -60,7 +60,7 @@ export class Workflow01 extends WorkflowEntrypoint<Env, Params> {
         },
         async () => {
           const { keyPair } = event.payload
-          const { calls, action, address, schedule } = scheduleResult
+          const { calls, address } = scheduleResult
 
           const { digest, ...request } = await porto.provider.request({
             method: 'wallet_prepareCalls',
@@ -102,8 +102,6 @@ export class Workflow01 extends WorkflowEntrypoint<Env, Params> {
             throw new NonRetryableError('failed to send prepared calls')
           }
 
-          console.info('transaction hash', hash)
-
           const insertQuery = await this.env.DB.prepare(
             /* sql */ `INSERT INTO transactions (address, hash, role, public_key) VALUES (?, ?, ?, ?)`,
           )
@@ -114,13 +112,14 @@ export class Workflow01 extends WorkflowEntrypoint<Env, Params> {
             throw new NonRetryableError('failed to insert transaction')
           }
 
-          console.info('transaction inserted')
+          console.info(`transaction inserted: ${hash}`)
 
-          // we will continue throwing errors so that the workflow can be retried
+          // we will continue throwing an 'error' so that the workflow can be retried
           throw new TransactionInsertedFakeError('transaction inserted')
         },
       )
     } catch (error) {
+      console.info(error instanceof TransactionInsertedFakeError)
       if (error instanceof TransactionInsertedFakeError)
         console.info('transaction processing completed')
       else console.error(error)

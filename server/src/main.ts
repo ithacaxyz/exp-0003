@@ -1,12 +1,10 @@
 import { Hono } from 'hono'
 import { cors } from 'hono/cors'
 import { Address, Json } from 'ox'
-import { porto } from './config.ts'
 import { logger } from 'hono/logger'
 import { debugApp } from './debug.ts'
 import type { Env } from './types.ts'
 import { ServerKeyPair } from './keys.ts'
-import { Scheduler } from './scheduler.ts'
 import { Workflow01 } from './workflow.ts'
 import { requestId } from 'hono/request-id'
 import { prettyJSON } from 'hono/pretty-json'
@@ -181,6 +179,6 @@ app.on(['GET', 'POST'], '/workflow/:address', async (context) => {
 
 app.route('/debug', debugApp)
 
-export { Scheduler, Workflow01 }
+export { Workflow01 }
 
 export default app satisfies ExportedHandler<Env>

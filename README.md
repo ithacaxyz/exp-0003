@@ -2,7 +2,7 @@
 
 ![Cover](./.github/cover.svg)
 
-[Read the Blog Post](https://www.ithaca.xyz/writings/exp-0003)
+[Read the Blog Post](https://ithaca.xyz/updates/exp-0003)
 
 ## Overview
 
@@ -60,7 +60,6 @@ cp .env.example .env
 ```
 
 ### Setup Server database (Cloudflare D1)
-
 
 ```shell
 # create database (this will fail if the database already exists)

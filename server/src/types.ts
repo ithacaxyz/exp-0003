@@ -1,14 +1,12 @@
 import type { Address, Hex } from 'ox'
-import type { Scheduler } from './scheduler.ts'
 import type { Params as WorkflowParams } from './workflow.ts'
 
 export interface Env {
-  ENVIRONMENT: 'development' | 'production'
   ADMIN_USERNAME: string
   ADMIN_PASSWORD: string
+  ENVIRONMENT: 'development' | 'production'
   DB: D1Database
   WORKFLOW_01: Workflow<WorkflowParams>
-  SCHEDULER: DurableObjectNamespace<Scheduler>
 }
 
 interface BaseAttributes {
