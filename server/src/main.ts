@@ -1,14 +1,12 @@
 import { Hono } from 'hono'
 import { cors } from 'hono/cors'
-import { porto } from './config.ts'
+import { Address, Json } from 'ox'
 import { logger } from 'hono/logger'
 import { debugApp } from './debug.ts'
 import type { Env } from './types.ts'
 import { ServerKeyPair } from './keys.ts'
-import { Scheduler } from './scheduler.ts'
 import { Workflow01 } from './workflow.ts'
 import { requestId } from 'hono/request-id'
-import { Address, Json, type Hex } from 'ox'
 import { prettyJSON } from 'hono/pretty-json'
 import { HTTPException } from 'hono/http-exception'
 import { getConnInfo } from 'hono/cloudflare-workers'
@@ -146,7 +144,7 @@ app.post('/schedule', async (context) => {
   })
 })
 
-app.on(['GET', 'POST'], '/workflow/:address', async (context, _next) => {
+app.on(['GET', 'POST'], '/workflow/:address', async (context) => {
   const { address } = context.req.param()
   const { count = 6 } = context.req.query()
 
@@ -170,7 +168,7 @@ app.on(['GET', 'POST'], '/workflow/:address', async (context, _next) => {
   }
 
   const instance = await context.env.WORKFLOW_01.create({
-    id: `${address}-${keyPair.expiry}-${count}-${Date.now()}`,
+    id: crypto.randomUUID(),
     params: { keyPair, count: Number(count) },
   })
 
@@ -181,6 +179,6 @@ app.on(['GET', 'POST'], '/workflow/:address', async (context, _next) => {
 
 app.route('/debug', debugApp)
 
-export { Scheduler, Workflow01 }
+export { Workflow01 }
 
 export default app satisfies ExportedHandler<Env>

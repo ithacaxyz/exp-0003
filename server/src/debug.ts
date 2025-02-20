@@ -1,11 +1,25 @@
 import { Hono } from 'hono'
-import type { Address } from 'ox'
 import type { Env } from './types'
 import { showRoutes } from 'hono/dev'
 import { ServerKeyPair } from './keys'
+import { basicAuth } from 'hono/basic-auth'
+import { HTTPException } from 'hono/http-exception'
 import { getConnInfo } from 'hono/cloudflare-workers'
 
-const debugApp = new Hono<{ Bindings: Env }>()
+export const debugApp = new Hono<{ Bindings: Env }>()
+
+debugApp.use(
+  '/nuke/*',
+  basicAuth({
+    verifyUser: (username, password, context) => {
+      if (context.env.ENVIRONMENT === 'development') return true
+      return (
+        username === context.env.ADMIN_USERNAME &&
+        password === context.env.ADMIN_PASSWORD
+      )
+    },
+  }),
+)
 
 /**
  * Debug stored keys, schedules and transactions
@@ -57,19 +71,19 @@ debugApp.get('/', async (context) => {
   })
 })
 
-/**
- * Nuke a key
- * Deletes the key from the database and the KV store
- */
-debugApp.post('/nuke', async (context) => {
-  const { address } = await context.req.json<{
-    publicKey: string
-    address: Address.Address
-  }>()
+debugApp.get('/nuke', async (context) => {
+  const { address } = context.req.query()
+  if (!address) {
+    return context.json({ error: 'address is required' }, 400)
+  }
+
   try {
     context.executionCtx.waitUntil(
       Promise.all([
         ServerKeyPair.deleteFromStore(context.env, { address }),
+        context.env.DB.prepare(`DELETE FROM schedules WHERE address = ?;`)
+          .bind(address.toLowerCase())
+          .all(),
         context.env.DB.prepare(`DELETE FROM transactions WHERE address = ?;`)
           .bind(address.toLowerCase())
           .all(),
@@ -78,18 +92,13 @@ debugApp.post('/nuke', async (context) => {
 
     return context.json({ success: true })
   } catch (error) {
-    const errorMessage = error instanceof Error ? error.message : error
-    console.error(errorMessage)
-    return context.json({ error: errorMessage }, 500)
+    console.error(error)
+    throw new HTTPException(500, { message: `/debug/nuke failed` })
   }
 })
 
 // nuke all keys, schedules and transactions
-debugApp.get('/nuke-everything', async (context) => {
-  if (context.env.ENVIRONMENT !== 'development') {
-    return context.json({ error: 'Not allowed in production' }, 403)
-  }
-
+debugApp.get('/nuke/everything', async (context) => {
   try {
     context.executionCtx.waitUntil(
       Promise.all([
@@ -100,10 +109,7 @@ debugApp.get('/nuke-everything', async (context) => {
     )
     return context.json({ success: true })
   } catch (error) {
-    const errorMessage = error instanceof Error ? error.message : error
-    console.error(errorMessage)
-    return context.json({ success: false, error: errorMessage }, 500)
+    console.error(error)
+    throw new HTTPException(500, { message: `/debug/nuke/everything failed` })
   }
 })
-
-export { debugApp }
