@@ -147,6 +147,7 @@ app.post('/schedule', async (context) => {
 app.on(['GET', 'POST'], '/workflow/:address', async (context) => {
   const { address } = context.req.param()
   const { count = 6 } = context.req.query()
+  console.info('workflow', address, count)
 
   if (!Address.validate(address)) {
     throw new HTTPException(400, { message: 'Invalid address' })
@@ -169,7 +170,7 @@ app.on(['GET', 'POST'], '/workflow/:address', async (context) => {
 
   const instance = await context.env.WORKFLOW_01.create({
     id: crypto.randomUUID(),
-    params: { keyPair, count: Number(count) },
+    params: { keyPair, count: Number(count || 6) },
   })
 
   console.info('Workflow01 instance created', instance.id)

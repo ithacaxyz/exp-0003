@@ -24,7 +24,6 @@ export type Params = {
 export class Workflow01 extends WorkflowEntrypoint<Env, Params> {
   constructor(ctx: ExecutionContext, env: Env) {
     super(ctx, env)
-    console.info('Workflow01 constructor')
   }
 
   async run(
@@ -119,7 +118,6 @@ export class Workflow01 extends WorkflowEntrypoint<Env, Params> {
         },
       )
     } catch (error) {
-      console.info(error instanceof TransactionInsertedFakeError)
       if (error instanceof TransactionInsertedFakeError)
         console.info('transaction processing completed')
       else console.error(error)

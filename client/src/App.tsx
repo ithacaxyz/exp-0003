@@ -2,25 +2,26 @@ import {
   useDebug,
   useBalance,
   nukeEverything,
-  useClearLocalStorage,
+  useNukeEverything,
 } from './hooks.ts'
 import { Hooks } from 'porto/wagmi'
 import { porto, wagmiConfig } from './config.ts'
 import { ExperimentERC20 } from './contracts.ts'
 import { useAccount, useConnectors } from 'wagmi'
 import { truncateHexString } from './utilities.ts'
+import { useMutation } from '@tanstack/react-query'
 import { type Errors, type Hex, Json, Value } from 'ox'
 import { SERVER_URL, permissions } from './constants.ts'
 import { useEffect, useState, useSyncExternalStore } from 'react'
 import { useCallsStatus, useSendCalls } from 'wagmi/experimental'
 
 export function App() {
-  useClearLocalStorage()
+  useNukeEverything()
 
   return (
     <main>
       <DebugLink />
-      <hr className="h-px my-8 bg-gray-200 border-0 dark:bg-gray-700" />
+      <hr />
       <details>
         <summary style={{ fontSize: '1.25rem' }}>State</summary>
         <State />
@@ -86,25 +87,6 @@ function DebugLink() {
       >
         DEBUG
       </a>
-      {/* <a
-        target="_blank"
-        rel="noreferrer"
-        hidden={!import.meta.env.DEV}
-        href={`${SERVER_URL}/init`}
-        style={{
-          padding: '6px',
-          color: 'white',
-          width: '100%',
-          fontWeight: '700',
-          textDecoration: 'none',
-          backgroundColor: 'black',
-          borderColor: 'darkgray',
-          borderWidth: '1px',
-          borderStyle: 'solid',
-        }}
-      >
-        INIT SCHEDULER
-      </a> */}
       <button
         hidden={!import.meta.env.DEV}
         disabled={!import.meta.env.DEV}
@@ -177,6 +159,7 @@ function Connect() {
         <div key={connector?.uid} style={{ display: 'flex', gap: '10px' }}>
           <button
             key={connector?.uid}
+            disabled={connect.status === 'pending'}
             onClick={async () =>
               disconnectFromAll().then(() =>
                 connect.mutateAsync({
@@ -192,6 +175,7 @@ function Connect() {
             Login
           </button>
           <button
+            disabled={connect.status === 'pending'}
             onClick={async () =>
               disconnectFromAll().then(() => {
                 nukeEverything()
@@ -208,7 +192,15 @@ function Connect() {
           >
             Register
           </button>
-          <button onClick={disconnectFromAll} type="button">
+          <button
+            type="button"
+            onClick={disconnectFromAll}
+            disabled={
+              connect.status === 'pending' ||
+              disconnect.status === 'pending' ||
+              !address
+            }
+          >
             Disconnect
           </button>
         </div>
@@ -235,51 +227,59 @@ function Connect() {
   )
 }
 
-function RequestKey() {
-  const [result, setResult] = useState<{
-    type: 'p256'
-    expiry: number
-    publicKey: Hex.Hex
-    role: 'session' | 'admin'
-  } | null>(null)
+interface Key {
+  type: 'p256'
+  expiry: number
+  publicKey: Hex.Hex
+  role: 'session' | 'admin'
+}
 
+function RequestKey() {
   const { address } = useAccount()
 
-  const { refetch } = useDebug({ enabled: result !== null, address })
+  // const { refetch } = useDebug({ enabled: !!address, address })
+
+  const requestKeyMutation = useMutation<Key>({
+    mutationFn: async () => {
+      if (!address) return
+      const searchParams = new URLSearchParams({
+        expiry: permissions().expiry.toString(),
+      })
+      const response = await fetch(
+        `${SERVER_URL}/keys/${address.toLowerCase()}?${searchParams.toString()}`,
+      )
+      const result = await Json.parse(await response.text())
+      await wagmiConfig.storage?.setItem(
+        `${address.toLowerCase()}-keys`,
+        Json.stringify(result),
+      )
+      return result
+    },
+  })
   return (
     <div>
       <h3>[server] Request Key from Server (GET /keys/:address)</h3>
       <button
-        onClick={async (_) => {
-          if (!address) return
-          const searchParams = new URLSearchParams({
-            expiry: permissions().expiry.toString(),
-          })
-          const response = await fetch(
-            `${SERVER_URL}/keys/${address.toLowerCase()}?${searchParams.toString()}`,
-          )
-
-          const result = await Json.parse(await response.text())
-
-          await wagmiConfig.storage?.setItem(
-            `${address.toLowerCase()}-keys`,
-            Json.stringify(result),
-          )
-          setResult(result)
-          refetch()
-        }}
         type="button"
+        onClick={() => requestKeyMutation.mutate()}
+        disabled={requestKeyMutation.status === 'pending'}
       >
-        Request Key
+        {requestKeyMutation.status === 'pending'
+          ? 'Requesting key…'
+          : 'Request Key'}
       </button>
-      {result ? (
+      {requestKeyMutation.data ? (
         <details>
           <summary style={{ marginTop: '1rem' }}>
-            {truncateHexString({ address: result?.publicKey, length: 12 })} -
-            expires: {new Date(result.expiry * 1_000).toLocaleString()} (local
-            time)
+            {truncateHexString({
+              address: requestKeyMutation.data?.publicKey,
+              length: 12,
+            })}{' '}
+            - expires:{' '}
+            {new Date(requestKeyMutation.data.expiry * 1_000).toLocaleString()}{' '}
+            (local time)
           </summary>
-          <pre>{Json.stringify(result, undefined, 2)}</pre>
+          <pre>{Json.stringify(requestKeyMutation.data, undefined, 2)}</pre>
         </details>
       ) : null}
     </div>
@@ -303,7 +303,7 @@ function GrantPermissions() {
             (await wagmiConfig.storage?.getItem(
               `${address.toLowerCase()}-keys`,
             )) || '{}',
-          ) as { publicKey: Hex.Hex; type: 'p256'; expiry: number }
+          ) as Key
 
           // if `expry` is present in both `key` and `permissions`, pick the lower value
           const expiry = Math.min(key.expiry, permissions().expiry)
@@ -426,31 +426,80 @@ const schedules = {
 
 type Schedule = keyof typeof schedules
 
-/* Check server activity */
 function DemoScheduler() {
-  const [status, setStatus] = useState<
-    'idle' | 'pending' | 'error' | 'success'
-  >('idle')
-  const [error, setError] = useState<string | null>(null)
   const { address } = useAccount()
+  const [error, setError] = useState<string | null>(null)
+  const { data: debugData } = useDebug({ address, enabled: !!address })
 
-  const { data: debugData, refetch } = useDebug({ address, enabled: !!address })
+  const scheduleTransactionMutation = useMutation({
+    mutationFn: async ({
+      count = 6,
+      action,
+      schedule,
+    }: {
+      count?: number
+      action: string
+      schedule: Schedule
+    }) => {
+      if (!address) return
+
+      const { expiry } = permissions()
+
+      if (expiry < Math.floor(Date.now() / 1_000)) {
+        throw new Error('Key expired')
+      }
+
+      const searchParams = new URLSearchParams({
+        address: address.toLowerCase(),
+      })
+      const url = `${SERVER_URL}/schedule?${searchParams.toString()}`
+      const response = await fetch(url, {
+        method: 'POST',
+        body: Json.stringify({ action, schedule }),
+      })
+
+      return { ...Json.parse(await response.text()), count }
+    },
+    onSuccess: (data) => {
+      console.info('scheduleTransactionMutation onSuccess', data)
+      startWorkflowMutation.mutate({ count: data.count })
+    },
+  })
+
+  const startWorkflowMutation = useMutation({
+    mutationFn: async ({ count }: { count: number }) => {
+      if (!address) return
+      console.info('startWorkflowMutation', count)
+
+      const response = await fetch(
+        `${SERVER_URL}/workflow/${address.toLowerCase()}?count=${count}`,
+      )
+      return Json.parse(await response.text())
+    },
+  })
+
+  const isPending =
+    scheduleTransactionMutation.status === 'pending' ||
+    startWorkflowMutation.status === 'pending'
 
   return (
     <div>
       <div style={{ display: 'flex', alignItems: 'center' }}>
         <h3>[server] Schedule Transactions</h3>
         <p style={{ marginLeft: '6px' }}>
-          | active schedules: {debugData?.schedules?.length} |
+          | active schedules: {debugData?.schedules?.length || 0} |
         </p>
-        {status !== 'idle' && (
+        {startWorkflowMutation.status !== 'idle' && (
           <span
             style={{
               marginLeft: '10px',
-              color: status === 'error' ? '#F43F5E' : '#16A34A',
+              color:
+                startWorkflowMutation.status === 'error'
+                  ? '#F43F5E'
+                  : '#16A34A',
             }}
           >
-            {status}
+            {startWorkflowMutation.status}
           </span>
         )}
       </div>
@@ -460,59 +509,18 @@ function DemoScheduler() {
       <form
         onSubmit={async (event) => {
           event.preventDefault()
-          try {
-            setStatus('pending')
 
-            if (!address) return setError('No address')
+          const formData = new FormData(event.target as HTMLFormElement)
 
-            const { expiry } = permissions()
+          const action =
+            (formData.get('action') as string) ?? 'approve-transfer'
+          const schedule = formData.get('schedule') as Schedule
+          const count = Number(formData.get('count') as string) || 6
 
-            if (expiry < Math.floor(Date.now() / 1_000)) {
-              setError('Key expired')
-              throw new Error('Key expired')
-            }
+          const cron = schedules[schedule]
+          if (!cron) return setError('Invalid schedule')
 
-            const formData = new FormData(event.target as HTMLFormElement)
-
-            const action =
-              (formData.get('action') as string) ?? 'approve-transfer'
-            const schedule = formData.get('schedule') as Schedule
-            const count = formData.get('count') as string
-
-            const cron = schedules[schedule]
-            if (!cron) return setError('Invalid schedule')
-
-            const searchParams = new URLSearchParams({
-              address: address.toLowerCase(),
-            })
-            const url = `${SERVER_URL}/schedule?${searchParams.toString()}`
-            const response = await fetch(url, {
-              method: 'POST',
-              body: Json.stringify({ action, schedule: cron }),
-            })
-
-            if (!response.ok) {
-              setStatus('error')
-              return setError(await response.text())
-            }
-
-            await Json.parse(await response.text())
-
-            const workflowResponse = await fetch(
-              `${SERVER_URL}/workflow/${address.toLowerCase()}?count=${count ?? 6}`,
-            )
-            const workflow = await Json.parse(await workflowResponse.text())
-            console.log(workflow)
-            setStatus('success')
-            setError(null)
-            refetch()
-          } catch (error) {
-            const errorMessage =
-              error instanceof Error ? error.message : 'unknown error'
-            console.error(errorMessage)
-            setError(errorMessage)
-            setStatus('error')
-          }
+          scheduleTransactionMutation.mutate({ action, schedule, count })
         }}
       >
         <p>Approve & Transfer 1 EXP</p>
@@ -555,10 +563,10 @@ function DemoScheduler() {
 
           <button
             type="submit"
-            disabled={status === 'pending'}
+            disabled={isPending}
             style={{ width: '75px', textAlign: 'center' }}
           >
-            {status === 'pending' ? 'Submitting…' : 'Submit'}
+            {isPending ? 'Submitting…' : 'Submit'}
           </button>
         </div>
       </form>

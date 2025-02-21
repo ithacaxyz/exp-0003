@@ -65,7 +65,7 @@ export function useDebug({
   })
 }
 
-export function useClearLocalStorage() {
+export function useNukeEverything() {
   React.useEffect(() => {
     // on `d` press
     window.addEventListener('keydown', (event) => {
