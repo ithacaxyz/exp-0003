@@ -1,4 +1,4 @@
-# EXP-0003: 
+# EXP-0003: Account Subscriptions
 
 ![Cover](./.github/cover.svg)
 
