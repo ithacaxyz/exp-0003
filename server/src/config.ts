@@ -1,7 +1,14 @@
-import { Implementation, Porto } from 'porto'
-import { odysseyTestnet } from 'porto/Chains'
+import { http } from 'viem'
+import { Porto, Storage } from 'porto'
+import { baseSepolia } from 'porto/Chains'
 
-export const porto = Porto.create({
-  chains: [odysseyTestnet],
-  implementation: Implementation.local(),
-})
+export type TPorto = ReturnType<typeof getPorto>
+
+export const getPorto = () =>
+  Porto.create({
+    chains: [baseSepolia],
+    transports: {
+      [baseSepolia.id]: http(),
+    },
+    storage: Storage.memory(),
+  })

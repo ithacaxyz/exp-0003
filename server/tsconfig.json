@@ -7,7 +7,10 @@
     "allowJs": true,
     "checkJs": true,
     "outDir": "./dist",
-    "lib": ["ESNext"],
+    "rootDir": "./src",
+    "lib": [
+      "ESNext"
+    ],
     "target": "ESNext",
     "module": "ESNext",
     "skipLibCheck": true,
@@ -29,9 +32,21 @@
     "allowSyntheticDefaultImports": true,
     "forceConsistentCasingInFileNames": true,
     "noPropertyAccessFromIndexSignature": true,
-    "types": ["node", "@cloudflare/workers-types"]
+    "types": [
+      "node",
+      "@cloudflare/workers-types"
+    ]
   },
-  "include": ["src/**/*"],
-  "files": ["./env.d.ts"],
-  "exclude": ["dist", "node_modules"]
+  "include": [
+    "src/**/*"
+  ],
+  "files": [
+    "env.d.ts",
+    "wrangler.json",
+    "package.json"
+  ],
+  "exclude": [
+    "dist",
+    "node_modules"
+  ]
 }

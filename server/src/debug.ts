@@ -1,10 +1,11 @@
 import { Hono } from 'hono'
-import type { Env } from './types'
 import { showRoutes } from 'hono/dev'
-import { ServerKeyPair } from './keys'
 import { basicAuth } from 'hono/basic-auth'
 import { HTTPException } from 'hono/http-exception'
 import { getConnInfo } from 'hono/cloudflare-workers'
+
+import type { Env } from '#types.ts'
+import { ServerKeyPair } from '#keys.ts'
 
 export const debugApp = new Hono<{ Bindings: Env }>()
 

@@ -88,7 +88,7 @@ pnpm --filter='server' --filter='client' dev
 cd client
 pnpm build
 
-pnpm wrangler deploy dist --config='wrangler.toml'
+pnpm wrangler deploy dist --config='wrangler.json'
 ```
 
 ### Deploy worker
@@ -96,5 +96,5 @@ pnpm wrangler deploy dist --config='wrangler.toml'
 ```shell
 cd server
 
-pnpm wrangler deploy dist --config='wrangler.toml'
+pnpm wrangler deploy dist --config='wrangler.json'
 ```

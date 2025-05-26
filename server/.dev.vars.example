@@ -1,2 +1,8 @@
 PORT=6900
 ENVIRONMENT="development"
+
+ADMIN_USERNAME="admin"
+ADMIN_PASSWORD="admin"
+
+# 'verbose' / 'normal' / unset
+LOGGING="verbose"

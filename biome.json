@@ -6,7 +6,9 @@
     "useIgnoreFile": true
   },
   "files": {
-    "ignore": ["_"],
+    "ignore": [
+      "_"
+    ],
     "ignoreUnknown": true
   },
   "organizeImports": {
@@ -42,7 +44,8 @@
   },
   "json": {
     "formatter": {
-      "enabled": true
+      "enabled": true,
+      "lineWidth": 1
     },
     "linter": {
       "enabled": true
@@ -57,7 +60,10 @@
   },
   "overrides": [
     {
-      "include": ["tsconfig.json", "tsconfig.*.json"],
+      "include": [
+        "tsconfig.json",
+        "tsconfig.*.json"
+      ],
       "json": {
         "parser": {
           "allowComments": true,

@@ -1,10 +1,11 @@
 interface Environment {
-  ENVIRONMENT: 'development' | 'production'
+  readonly PORT: string
+  readonly ENVIRONMENT: 'development' | 'production'
+  readonly ADMIN_USERNAME: string
+  readonly ADMIN_PASSWORD: string
+  readonly LOGGING: 'verbose' | 'normal' | ''
 }
 
 declare namespace NodeJS {
-  interface ProcessEnv {
-    PORT: string
-    ENVIRONMENT: 'development' | 'production'
-  }
+  interface ProcessEnv extends Environment {}
 }

@@ -1,11 +1,11 @@
 packages:
-  - 'client'
-  - 'server'
+  - "client"
+  - "server"
 
 catalog:
-  ox: "^0.6.9"
-  porto: "^0.0.12"
-  wagmi: "^2.14.11"
-  wrangler: "^3.109.2"
-  typescript: "^5.7.3"
-  '@types/node': "^22.13.5"
+  ox: "^0.7.2"
+  porto: "^0.0.23"
+  wagmi: "^2.15.4"
+  wrangler: "^4.16.1"
+  typescript: "^5.8.3"
+  "@types/node": "^22.15.21"

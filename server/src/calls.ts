@@ -1,4 +1,4 @@
-import { ExperimentERC20 } from './contracts.ts'
+import { ExperimentERC20 } from '#contracts.ts'
 import { AbiFunction, type Address, Value } from 'ox'
 
 export const actions = ['mint', 'approve-transfer']

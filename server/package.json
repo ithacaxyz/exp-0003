@@ -2,25 +2,31 @@
   "name": "server",
   "private": true,
   "type": "module",
+  "imports": {
+    "#*": "./src/*",
+    "#package.json": "./package.json",
+    "#wrangler.json": "./wrangler.json"
+  },
   "scripts": {
-    "dev": "wrangler --config='wrangler.toml' dev --test-scheduled",
-    "preview": "wrangler --config='wrangler.toml' dev --remote",
-    "build": "wrangler --config='wrangler.toml' deploy --outdir='dist' --dry-run",
-    "deploy": "wrangler deploy --config='wrangler.toml' --env='production'",
-    "db:create": "wrangler --config='wrangler.toml' d1 create offline-demo-txs",
-    "db:delete": "wrangler --config='wrangler.toml' d1 delete offline-demo-txs --skip-confirmation",
-    "db:bootstrap": "wrangler --config='wrangler.toml' d1 execute offline-demo-txs --file='schema.sql' --local",
-    "db:bootstrap:remote": "wrangler --config='wrangler.toml' d1 execute offline-demo-txs --file='schema.sql' --remote",
+    "dev": "wrangler --config='wrangler.json' dev",
+    "preview": "wrangler --config='wrangler.json' dev --remote",
+    "build": "wrangler --config='wrangler.json' deploy --outdir='dist' --keep-vars --var ENVIRONMENT:production --dry-run",
+    "deploy": "wrangler deploy --config='wrangler.json' --var ENVIRONMENT:production",
+    "db:create": "wrangler --config='wrangler.json' d1 create exp-0003",
+    "db:delete": "wrangler --config='wrangler.json' d1 delete exp-0003 --skip-confirmation",
+    "db:bootstrap": "wrangler --config='wrangler.json' d1 execute exp-0003 --file='schema.sql' --local",
+    "db:bootstrap:remote": "wrangler --config='wrangler.json' d1 execute exp-0003 --file='schema.sql' --remote",
     "typecheck": "tsc --noEmit --project tsconfig.json"
   },
   "dependencies": {
-    "@hono/cloudflare-access": "^0.2.0",
-    "hono": "^4.7.2",
+    "@hono/cloudflare-access": "0.3.0",
+    "hono": "^4.7.8",
     "ox": "catalog:",
-    "porto": "catalog:"
+    "porto": "catalog:",
+    "viem": "^2.28.3"
   },
   "devDependencies": {
-    "@cloudflare/workers-types": "^4.20250214.0",
+    "@cloudflare/workers-types": "^4.20250503.0",
     "@types/node": "catalog:",
     "typescript": "catalog:",
     "wrangler": "catalog:"

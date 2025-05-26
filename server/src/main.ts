@@ -1,49 +1,54 @@
 import { Hono } from 'hono'
 import { cors } from 'hono/cors'
+import { csrf } from 'hono/csrf'
 import { Address, Json } from 'ox'
 import { logger } from 'hono/logger'
-import { debugApp } from './debug.ts'
-import type { Env } from './types.ts'
-import { ServerKeyPair } from './keys.ts'
-import { Workflow01 } from './workflow.ts'
+import { timeout } from 'hono/timeout'
 import { requestId } from 'hono/request-id'
 import { prettyJSON } from 'hono/pretty-json'
 import { HTTPException } from 'hono/http-exception'
 import { getConnInfo } from 'hono/cloudflare-workers'
-import { actions, buildActionCall } from './calls.ts'
+
+import { debugApp } from '#debug.ts'
+import type { Env } from '#types.ts'
+import { getPorto } from '#config.ts'
+import { ServerKeyPair } from '#keys.ts'
+import wranglerJSON from '#wrangler.json'
+import { Exp3Workflow } from '#workflow.ts'
+import { actions, buildActionCall } from '#calls.ts'
 
 const app = new Hono<{ Bindings: Env }>()
 
+// app.use(csrf())
 app.use(logger())
-
-/* append `?pretty` to any request to get prettified JSON */
-app.use(prettyJSON({ space: 2 }))
-
-app.use('*', requestId({ headerName: 'EXP0003-Request-Id' }))
-
-app.use('*', cors({ origin: '*', allowMethods: ['GET', 'OPTIONS', 'POST'] }))
-
-app.get('/', (context) =>
-  context.text('gm. See code at https://github.com/ithacaxyz/exp-0003'),
+app.use('*', timeout(4_000))
+app.use(prettyJSON({ space: 2 })) // append `?pretty` to any request to get prettified JSON
+app.use('*', requestId({ headerName: `${wranglerJSON.name}-Request-Id` }))
+app.use(
+  '*',
+  cors({ origin: '*', allowMethods: ['GET', 'OPTIONS', 'POST', 'HEAD'] }),
 )
 
 app.onError((error, context) => {
+  const { remote } = getConnInfo(context)
   const requestId = context.get('requestId')
   console.error(
-    `[onError: ${requestId} ${context.req.url}]: ${error}`,
-    context.error,
+    [
+      `[${requestId}]`,
+      `-[${remote.address}]`,
+      `-[${context.req.url}]:\n`,
+      `${error.message}`,
+    ].join(''),
   )
   if (error instanceof HTTPException) return error.getResponse()
-  const { remote } = getConnInfo(context)
   return context.json({ remote, error: error.message, requestId }, 500)
 })
 
 app.notFound((context) => {
-  const requestId = context.get('requestId')
-  const errorMessage = `[notFound: ${requestId} ${context.req.url}]: is not a valid path.`
-  const { remote } = getConnInfo(context)
-  console.error(errorMessage, remote)
-  return context.json({ error: errorMessage, remote, requestId }, 404)
+  throw new HTTPException(404, {
+    cause: context.error,
+    message: `${context.req.url} is not a valid path.`,
+  })
 })
 
 app.get('/keys/:address', async (context) => {
@@ -76,10 +81,7 @@ app.get('/keys/:address', async (context) => {
     expiry: expiry ? Number(expiry) : undefined,
   })
 
-  console.info(`Key stored for ${address}`)
-
   const { public_key, role, type } = keyPair
-
   return context.json({ type, publicKey: public_key, expiry, role })
 })
 
@@ -144,10 +146,9 @@ app.post('/schedule', async (context) => {
   })
 })
 
-app.on(['GET', 'POST'], '/workflow/:address', async (context) => {
+app.post('/workflow/:address', async (context) => {
   const { address } = context.req.param()
   const { count = 6 } = context.req.query()
-  console.info('workflow', address, count)
 
   if (!Address.validate(address)) {
     throw new HTTPException(400, { message: 'Invalid address' })
@@ -168,9 +169,15 @@ app.on(['GET', 'POST'], '/workflow/:address', async (context) => {
     return context.json({ error: 'Key expired and deleted' }, 400)
   }
 
-  const instance = await context.env.WORKFLOW_01.create({
+  const porto = getPorto()
+
+  const instance = await context.env.EXP3_WORKFLOW.create({
     id: crypto.randomUUID(),
-    params: { keyPair, count: Number(count || 6) },
+    params: {
+      keyPair,
+      provider: porto.provider,
+      count: Number(count || 6),
+    },
   })
 
   console.info('Workflow01 instance created', instance.id)
@@ -180,6 +187,6 @@ app.on(['GET', 'POST'], '/workflow/:address', async (context) => {
 
 app.route('/debug', debugApp)
 
-export { Workflow01 }
+export { Exp3Workflow }
 
 export default app satisfies ExportedHandler<Env>

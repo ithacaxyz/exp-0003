@@ -1,0 +1,40 @@
+{
+  "$schema": "https://esm.sh/wrangler/config-schema.json",
+  "minify": true,
+  "keep_vars": true,
+  "workers_dev": true,
+  "main": "./src/main.ts",
+  "name": "exp-0003-server",
+  "compatibility_date": "2025-04-30",
+  "compatibility_flags": [
+    "nodejs_als",
+    "nodejs_compat",
+    "nodejs_compat_populate_process_env"
+  ],
+  "dev": {
+    "port": 6900
+  },
+  "placement": {
+    "mode": "smart"
+  },
+  "observability": {
+    "enabled": true
+  },
+  "vars": {
+    "ENVIRONMENT": "development"
+  },
+  "d1_databases": [
+    {
+      "binding": "DB",
+      "database_name": "exp-0003",
+      "database_id": "80b220b8-9f1d-4179-8383-ddeeeac6fcf0"
+    }
+  ],
+  "workflows": [
+    {
+      "name": "EXP3_WORKFLOW",
+      "binding": "EXP3_WORKFLOW",
+      "class_name": "Exp3Workflow"
+    }
+  ]
+}

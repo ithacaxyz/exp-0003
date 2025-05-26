@@ -1,5 +1,6 @@
 import { P256, PublicKey } from 'ox'
-import type { KeyPair, Env } from './types.ts'
+
+import type { KeyPair, Env } from '#types.ts'
 
 type GeneratedKeyPair = Omit<KeyPair, 'private_key' | 'id' | 'created_at'>
 

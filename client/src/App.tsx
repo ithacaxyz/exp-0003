@@ -1,19 +1,26 @@
 import {
+  useConnect,
+  useAccount,
+  useSendCalls,
+  useDisconnect,
+  useConnectors,
+  useCallsStatus,
+} from 'wagmi'
+import * as React from 'react'
+import { Hooks } from 'porto/wagmi'
+import { useMutation } from '@tanstack/react-query'
+import { type Errors, type Hex, Json, Value } from 'ox'
+
+import {
   useDebug,
   useBalance,
   nukeEverything,
   useNukeEverything,
-} from './hooks.ts'
-import { Hooks } from 'porto/wagmi'
-import { porto, wagmiConfig } from './config.ts'
-import { ExperimentERC20 } from './contracts.ts'
-import { useAccount, useConnectors } from 'wagmi'
-import { truncateHexString } from './utilities.ts'
-import { useMutation } from '@tanstack/react-query'
-import { type Errors, type Hex, Json, Value } from 'ox'
-import { SERVER_URL, permissions } from './constants.ts'
-import { useEffect, useState, useSyncExternalStore } from 'react'
-import { useCallsStatus, useSendCalls } from 'wagmi/experimental'
+} from '#hooks.ts'
+import { ExperimentERC20 } from '#contracts.ts'
+import { porto, wagmiConfig } from '#config.ts'
+import { truncateHexString } from '#utilities.ts'
+import { SERVER_URL, permissions } from '#constants.ts'
 
 export function App() {
   useNukeEverything()
@@ -48,9 +55,8 @@ export function App() {
 
 function DebugLink() {
   const { address } = useAccount()
-
   const connectors = useConnectors()
-  const disconnect = Hooks.useDisconnect()
+  const disconnect = useDisconnect()
 
   const searchParams = new URLSearchParams({
     pretty: 'true',
@@ -93,7 +99,7 @@ function DebugLink() {
         onClick={async () => {
           await nukeEverything()
           await Promise.all(
-            connectors.map((c) => disconnect.mutateAsync({ connector: c })),
+            connectors.map((c) => disconnect.disconnectAsync({ connector: c })),
           )
         }}
         type="button"
@@ -117,20 +123,22 @@ function DebugLink() {
 
 function Connect() {
   const label = `_exp-0003-${Math.floor(Date.now() / 1_000)}`
-  const [grantPermissions, setGrantPermissions] = useState<boolean>(true)
-
-  const connectors = useConnectors()
-  const connector = connectors.find((x) => x.id === 'xyz.ithaca.porto')
+  const [grantPermissions, setGrantPermissions] = React.useState<boolean>(true)
 
   const { address } = useAccount()
-  const connect = Hooks.useConnect()
-  const disconnect = Hooks.useDisconnect()
+  const connect = useConnect()
+  const disconnect = useDisconnect()
+
+  const [connector] = connect.connectors
+
   const allPermissions_ = Hooks.usePermissions()
   const latestPermissions = allPermissions_.data?.at(-1)
 
   const disconnectFromAll = async () => {
-    await Promise.all(connectors.map((c) => c.disconnect().catch(() => {})))
-    await disconnect.mutateAsync({ connector })
+    await Promise.all(
+      connect.connectors.map((c) => c.disconnect().catch(() => {})),
+    )
+    await disconnect.disconnectAsync({ connector })
   }
 
   return (
@@ -162,11 +170,14 @@ function Connect() {
             disabled={connect.status === 'pending'}
             onClick={async () =>
               disconnectFromAll().then(() =>
-                connect.mutateAsync({
+                connect.connect({
                   connector,
-                  grantPermissions: grantPermissions
-                    ? permissions()
-                    : undefined,
+                  capabilities: {
+                    createAccount: false,
+                    grantPermissions: grantPermissions
+                      ? permissions()
+                      : undefined,
+                  },
                 }),
               )
             }
@@ -179,12 +190,14 @@ function Connect() {
             onClick={async () =>
               disconnectFromAll().then(() => {
                 nukeEverything()
-                connect.mutate({
+                connect.connect({
                   connector,
-                  createAccount: { label },
-                  grantPermissions: grantPermissions
-                    ? permissions()
-                    : undefined,
+                  capabilities: {
+                    createAccount: { label },
+                    grantPermissions: grantPermissions
+                      ? permissions()
+                      : undefined,
+                  },
                 })
               })
             }
@@ -347,24 +360,24 @@ function GrantPermissions() {
 
 function Mint() {
   const { address } = useAccount()
-  const { data: id, error, isPending, sendCalls } = useSendCalls()
+  const { data, error, isPending, sendCalls } = useSendCalls()
   const { isLoading: isConfirming, isSuccess: isConfirmed } = useCallsStatus({
-    id: id as string,
+    id: data?.id as unknown as string,
     query: {
-      enabled: !!id,
+      enabled: !!data?.id,
       refetchInterval: ({ state }) => {
-        if (state.data?.status === 'CONFIRMED') return false
+        if (state.data?.status === 'success') return false
         return 1_000
       },
     },
   })
 
   const balance = useBalance()
-  const [transactions, setTransactions] = useState<Set<string>>(new Set())
+  const [transactions, setTransactions] = React.useState<Set<string>>(new Set())
 
-  useEffect(() => {
-    if (id) setTransactions((prev) => new Set([...prev, id]))
-  }, [id])
+  React.useEffect(() => {
+    if (data?.id) setTransactions((prev) => new Set([...prev, data.id]))
+  }, [data?.id])
 
   return (
     <div>
@@ -428,7 +441,7 @@ type Schedule = keyof typeof schedules
 
 function DemoScheduler() {
   const { address } = useAccount()
-  const [error, setError] = useState<string | null>(null)
+  const [error, setError] = React.useState<string | null>(null)
   const { data: debugData } = useDebug({ address, enabled: !!address })
 
   const scheduleTransactionMutation = useMutation({
@@ -473,6 +486,7 @@ function DemoScheduler() {
 
       const response = await fetch(
         `${SERVER_URL}/workflow/${address.toLowerCase()}?count=${count}`,
+        { method: 'POST' },
       )
       return Json.parse(await response.text())
     },
@@ -611,7 +625,7 @@ function DemoScheduler() {
 }
 
 function State() {
-  const state = useSyncExternalStore(
+  const state = React.useSyncExternalStore(
     // @ts-ignore
     porto._internal.store.subscribe,
     // @ts-ignore
@@ -619,6 +633,7 @@ function State() {
     // @ts-ignore
     () => porto._internal.store.getState(),
   )
+
   return (
     <div>
       <h3>State</h3>
@@ -626,8 +641,8 @@ function State() {
         <p>Disconnected</p>
       ) : (
         <>
-          <p>Address: {state.accounts[0].address}</p>
-          <p>Chain ID: {state.chain.id}</p>
+          <p>Address: {state?.accounts?.[0]?.address}</p>
+          <p>Chain ID: {state?.chainId}</p>
           <div>
             Keys:{' '}
             <pre>{Json.stringify(state.accounts?.[0]?.keys, null, 2)}</pre>
@@ -639,8 +654,9 @@ function State() {
 }
 
 function Events() {
-  const [responses, setResponses] = useState<Record<string, unknown>>({})
-  useEffect(() => {
+  const [responses, setResponses] = React.useState<Record<string, unknown>>({})
+
+  React.useEffect(() => {
     const handleResponse = (event: string) => (response: unknown) =>
       setResponses((responses) => ({
         ...responses,

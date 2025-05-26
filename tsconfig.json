@@ -6,7 +6,9 @@
     "noEmit": true,
     "allowJs": true,
     "checkJs": true,
-    "lib": ["ESNext"],
+    "lib": [
+      "ESNext"
+    ],
     "target": "ESNext",
     "module": "ESNext",
     "skipLibCheck": true,
@@ -28,8 +30,15 @@
     "allowSyntheticDefaultImports": true,
     "forceConsistentCasingInFileNames": true,
     "noPropertyAccessFromIndexSignature": true,
-    "types": ["node"]
+    "types": [
+      "node"
+    ]
   },
-  "include": ["**/*"],
-  "exclude": ["dist", "node_modules"]
+  "include": [
+    "**/*"
+  ],
+  "exclude": [
+    "dist",
+    "node_modules"
+  ]
 }
