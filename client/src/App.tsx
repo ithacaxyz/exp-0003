@@ -1,4 +1,5 @@
 import {
+  useChainId,
   useConnect,
   useAccount,
   useSendCalls,
@@ -17,7 +18,7 @@ import {
   nukeEverything,
   useNukeEverything,
 } from '#hooks.ts'
-import { ExperimentERC20 } from '#contracts.ts'
+import { exp1Config } from '#contracts.ts'
 import { porto, wagmiConfig } from '#config.ts'
 import { truncateHexString } from '#utilities.ts'
 import { SERVER_URL, permissions } from '#constants.ts'
@@ -122,6 +123,7 @@ function DebugLink() {
 }
 
 function Connect() {
+  const chainId = useChainId()
   const label = `_exp-0003-${Math.floor(Date.now() / 1_000)}`
   const [grantPermissions, setGrantPermissions] = React.useState<boolean>(true)
 
@@ -175,7 +177,7 @@ function Connect() {
                   capabilities: {
                     createAccount: false,
                     grantPermissions: grantPermissions
-                      ? permissions()
+                      ? permissions({ chainId })
                       : undefined,
                   },
                 }),
@@ -195,7 +197,7 @@ function Connect() {
                   capabilities: {
                     createAccount: { label },
                     grantPermissions: grantPermissions
-                      ? permissions()
+                      ? permissions({ chainId })
                       : undefined,
                   },
                 })
@@ -248,6 +250,7 @@ interface Key {
 }
 
 function RequestKey() {
+  const chainId = useChainId()
   const { address } = useAccount()
 
   // const { refetch } = useDebug({ enabled: !!address, address })
@@ -256,7 +259,7 @@ function RequestKey() {
     mutationFn: async () => {
       if (!address) return
       const searchParams = new URLSearchParams({
-        expiry: permissions().expiry.toString(),
+        expiry: permissions({ chainId }).expiry.toString(),
       })
       const response = await fetch(
         `${SERVER_URL}/keys/${address.toLowerCase()}?${searchParams.toString()}`,
@@ -300,6 +303,7 @@ function RequestKey() {
 }
 
 function GrantPermissions() {
+  const chainId = useChainId()
   const { address } = useAccount()
   const grantPermissions = Hooks.useGrantPermissions()
   return (
@@ -319,13 +323,13 @@ function GrantPermissions() {
           ) as Key
 
           // if `expry` is present in both `key` and `permissions`, pick the lower value
-          const expiry = Math.min(key.expiry, permissions().expiry)
+          const expiry = Math.min(key.expiry, permissions({ chainId }).expiry)
 
           grantPermissions.mutate({
             key,
             expiry,
             address,
-            permissions: permissions().permissions,
+            permissions: permissions({ chainId }).permissions,
           })
         }}
       >
@@ -359,6 +363,7 @@ function GrantPermissions() {
 }
 
 function Mint() {
+  const chainId = useChainId()
   const { address } = useAccount()
   const { data, error, isPending, sendCalls } = useSendCalls()
   const { isLoading: isConfirming, isSuccess: isConfirmed } = useCallsStatus({
@@ -389,8 +394,8 @@ function Mint() {
             calls: [
               {
                 functionName: 'mint',
-                abi: ExperimentERC20.abi,
-                to: ExperimentERC20.address[0],
+                abi: exp1Config.abi,
+                to: exp1Config.address[chainId],
                 args: [address!, Value.fromEther('100')],
               },
             ],
@@ -440,6 +445,7 @@ const schedules = {
 type Schedule = keyof typeof schedules
 
 function DemoScheduler() {
+  const chainId = useChainId()
   const { address } = useAccount()
   const [error, setError] = React.useState<string | null>(null)
   const { data: debugData } = useDebug({ address, enabled: !!address })
@@ -456,7 +462,7 @@ function DemoScheduler() {
     }) => {
       if (!address) return
 
-      const { expiry } = permissions()
+      const { expiry } = permissions({ chainId })
 
       if (expiry < Math.floor(Date.now() / 1_000)) {
         throw new Error('Key expired')
