@@ -362,7 +362,11 @@ function Mint() {
   const chainId = useChainId()
   const { address, chain } = useAccount()
   const { data, error, isPending, sendCalls } = useSendCalls()
-  const { isLoading: isConfirming, isSuccess: isConfirmed } = useCallsStatus({
+  const {
+    data: txHashData,
+    isLoading: isConfirming,
+    isSuccess: isConfirmed,
+  } = useCallsStatus({
     id: data?.id as unknown as string,
     query: {
       enabled: !!data?.id,
@@ -372,6 +376,8 @@ function Mint() {
       },
     },
   })
+  console.info('data', data)
+  console.info('txHashData', txHashData)
 
   const blockExplorer = chain?.blockExplorers?.default?.url
   const transactionLink = (hash: string) =>
@@ -386,8 +392,11 @@ function Mint() {
 
   const [transactions, setTransactions] = React.useState<Set<string>>(new Set())
   React.useEffect(() => {
-    if (data?.id) setTransactions((prev) => new Set([...prev, data.id]))
-  }, [data?.id])
+    if (!txHashData?.id) return
+    const hash = txHashData.receipts?.at(0)?.transactionHash
+    if (!hash) return
+    setTransactions((prev) => new Set([...prev, hash]))
+  }, [txHashData?.id, txHashData?.receipts])
 
   return (
     <div>
