@@ -2,6 +2,7 @@
 .gitattributes !filter !diff
 
 .dev.vars linguist-language=Dotenv
+.env.example linguist-language=Dotenv
 .dev.vars.example linguist-language=Dotenv
 
 wrangler.json linguist-language=JSON-with-Comments

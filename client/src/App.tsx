@@ -6,22 +6,18 @@ import {
   useDisconnect,
   useConnectors,
   useCallsStatus,
+  useReadContract,
 } from 'wagmi'
 import * as React from 'react'
 import { Hooks } from 'porto/wagmi'
 import { useMutation } from '@tanstack/react-query'
 import { type Errors, type Hex, Json, Value } from 'ox'
 
-import {
-  useDebug,
-  useBalance,
-  nukeEverything,
-  useNukeEverything,
-} from '#hooks.ts'
 import { exp1Config } from '#contracts.ts'
 import { porto, wagmiConfig } from '#config.ts'
 import { truncateHexString } from '#utilities.ts'
 import { SERVER_URL, permissions } from '#constants.ts'
+import { useDebug, nukeEverything, useNukeEverything } from '#hooks.ts'
 
 export function App() {
   useNukeEverything()
@@ -272,6 +268,7 @@ function RequestKey() {
       return result
     },
   })
+  console.info(requestKeyMutation.data)
   return (
     <div>
       <h3>[server] Request Key from Server (GET /keys/:address)</h3>
@@ -308,9 +305,7 @@ function GrantPermissions() {
   const grantPermissions = Hooks.useGrantPermissions()
   return (
     <div>
-      <h3>
-        [client] Grant Permissions to Server (experimental_grantPermissions)
-      </h3>
+      <h3>[client] Grant Permissions to Server (grantPermissions)</h3>
       <form
         onSubmit={async (event) => {
           event.preventDefault()
@@ -321,6 +316,7 @@ function GrantPermissions() {
               `${address.toLowerCase()}-keys`,
             )) || '{}',
           ) as Key
+          console.info(key)
 
           // if `expry` is present in both `key` and `permissions`, pick the lower value
           const expiry = Math.min(key.expiry, permissions({ chainId }).expiry)
@@ -364,7 +360,7 @@ function GrantPermissions() {
 
 function Mint() {
   const chainId = useChainId()
-  const { address } = useAccount()
+  const { address, chain } = useAccount()
   const { data, error, isPending, sendCalls } = useSendCalls()
   const { isLoading: isConfirming, isSuccess: isConfirmed } = useCallsStatus({
     id: data?.id as unknown as string,
@@ -377,16 +373,27 @@ function Mint() {
     },
   })
 
-  const balance = useBalance()
-  const [transactions, setTransactions] = React.useState<Set<string>>(new Set())
+  const blockExplorer = chain?.blockExplorers?.default?.url
+  const transactionLink = (hash: string) =>
+    blockExplorer ? `${blockExplorer}/tx/${hash}` : hash
 
+  const balance = useReadContract({
+    address: exp1Config.address[chainId],
+    abi: exp1Config.abi,
+    functionName: 'balanceOf',
+    args: [address!],
+  })
+
+  const [transactions, setTransactions] = React.useState<Set<string>>(new Set())
   React.useEffect(() => {
     if (data?.id) setTransactions((prev) => new Set([...prev, data.id]))
   }, [data?.id])
 
   return (
     <div>
-      <h3>[client] Mint EXP [balance: {balance}]</h3>
+      <h3>
+        [client] Mint EXP [balance: {Value.formatEther(balance.data ?? 0n)}]
+      </h3>
       <form
         onSubmit={(event) => {
           event.preventDefault()
@@ -416,7 +423,7 @@ function Mint() {
             <a
               target="_blank"
               rel="noopener noreferrer"
-              href={`https://odyssey-explorer.ithaca.xyz/tx/${tx}`}
+              href={transactionLink(tx)}
             >
               {tx}
             </a>
@@ -446,9 +453,13 @@ type Schedule = keyof typeof schedules
 
 function DemoScheduler() {
   const chainId = useChainId()
-  const { address } = useAccount()
+  const { address, chain } = useAccount()
   const [error, setError] = React.useState<string | null>(null)
   const { data: debugData } = useDebug({ address, enabled: !!address })
+
+  const blockExplorer = chain?.blockExplorers?.default?.url
+  const transactionLink = (hash: string) =>
+    blockExplorer ? `${blockExplorer}/tx/${hash}` : hash
 
   const scheduleTransactionMutation = useMutation({
     mutationFn: async ({
@@ -614,7 +625,7 @@ function DemoScheduler() {
                   <a
                     target="_blank"
                     rel="noreferrer"
-                    href={`https://odyssey-explorer.ithaca.xyz/tx/${transaction.hash}`}
+                    href={transactionLink(transaction.hash)}
                   >
                     {truncateHexString({
                       length: 12,

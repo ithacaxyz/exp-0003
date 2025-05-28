@@ -7,6 +7,7 @@
  * -
  * - [__View Contract on Base Sepolia Basescan__](https://sepolia.basescan.org/address/0x29f45fc3ed1d0ffafb5e2af9cc6c3ab1555cd5a2)
  */
+
 export const exp1Abi = [
   {
     inputs: [
@@ -201,9 +202,7 @@ export const exp1Abi = [
  * - [__View Contract on Base Sepolia Basescan__](https://sepolia.basescan.org/address/0x29f45fc3ed1d0ffafb5e2af9cc6c3ab1555cd5a2)
  */
 export const exp1Address = {
-  8453: '0x074C9c3273F31651a9dae896C1A1d68E868b6998',
   28404: '0x29F45fc3eD1d0ffaFb5e2af9Cc6C3AB1555cd5a2',
-  31337: '0xe1Aa25618fA0c7A1CFDab5d6B456af611873b629',
   84532: '0x29F45fc3eD1d0ffaFb5e2af9Cc6C3AB1555cd5a2',
 } as const
 
@@ -417,9 +416,7 @@ export const exp2Abi = [
  * - [__View Contract on Base Sepolia Basescan__](https://sepolia.basescan.org/address/0x62a9d6de963a5590f6fba5119e937f167677bfe7)
  */
 export const exp2Address = {
-  8453: '0xFcc74F42621D03Fd234d5f40931D8B82923E4D29',
   28404: '0x502fF46e72C47b8c3183DB8919700377EED66d2E',
-  31337: '0xe1DA8919f262Ee86f9BE05059C9280142CF23f48',
   84532: '0x62a9d6DE963a5590f6fbA5119e937F167677bfE7',
 } as const
 

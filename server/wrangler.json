@@ -5,7 +5,7 @@
   "workers_dev": true,
   "main": "./src/main.ts",
   "name": "exp-0003-server",
-  "compatibility_date": "2025-04-30",
+  "compatibility_date": "2025-05-27",
   "compatibility_flags": [
     "nodejs_als",
     "nodejs_compat",
@@ -27,7 +27,7 @@
     {
       "binding": "DB",
       "database_name": "exp-0003",
-      "database_id": "80b220b8-9f1d-4179-8383-ddeeeac6fcf0"
+      "database_id": "35a2ff47-d9f3-4cde-a0cf-a072b77551b1"
     }
   ],
   "workflows": [

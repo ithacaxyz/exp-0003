@@ -64,8 +64,10 @@ cp .env.example .env
 ```shell
 # create database (this will fail if the database already exists)
 pnpm --filter='server' db:create
-# bootstrap the existing database.
+# bootstrap the existing database. for local development
 pnpm --filter='server' db:bootstrap
+# bootstrap the remote database
+pnpm --filter='server' db:bootstrap:remote
 ```
 
 ### Start dev for worker and client
@@ -88,7 +90,7 @@ pnpm --filter='server' --filter='client' dev
 cd client
 pnpm build
 
-pnpm wrangler deploy dist --config='wrangler.json'
+pnpm wrangler deploy --config='wrangler.json'
 ```
 
 ### Deploy worker
@@ -96,5 +98,5 @@ pnpm wrangler deploy dist --config='wrangler.json'
 ```shell
 cd server
 
-pnpm wrangler deploy dist --config='wrangler.json'
+pnpm wrangler deploy --config='wrangler.json'
 ```

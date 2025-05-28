@@ -1,11 +1,18 @@
 packages:
-  - "client"
-  - "server"
-
+  - client
+  - server
 catalog:
-  ox: "^0.7.2"
-  porto: "^0.0.23"
-  wagmi: "^2.15.4"
-  wrangler: "^4.16.1"
-  typescript: "^5.8.3"
-  "@types/node": "^22.15.21"
+  ox: ^0.7.2
+  porto: ^0.0.25
+  wagmi: ^2.15.4
+  wrangler: ^4.17.0
+  typescript: ^5.8.3
+  '@types/node': ^22.15.23
+onlyBuiltDependencies:
+  - '@biomejs/biome'
+  - bufferutil
+  - esbuild
+  - keccak
+  - sharp
+  - utf-8-validate
+  - workerd

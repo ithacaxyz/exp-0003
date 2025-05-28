@@ -1,6 +1,5 @@
 import { Hono } from 'hono'
 import { cors } from 'hono/cors'
-import { csrf } from 'hono/csrf'
 import { Address, Json } from 'ox'
 import { logger } from 'hono/logger'
 import { timeout } from 'hono/timeout'
@@ -19,7 +18,6 @@ import { actions, buildActionCall } from '#calls.ts'
 
 const app = new Hono<{ Bindings: Env }>()
 
-// app.use(csrf())
 app.use(logger())
 app.use('*', timeout(4_000))
 app.use(prettyJSON({ space: 2 })) // append `?pretty` to any request to get prettified JSON
@@ -180,7 +178,7 @@ app.post('/workflow/:address', async (context) => {
     },
   })
 
-  console.info('Workflow01 instance created', instance.id)
+  console.info('Exp3Workflow instance created', instance.id)
 
   return context.json({ id: instance.id, details: await instance.status() })
 })
