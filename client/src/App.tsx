@@ -268,7 +268,7 @@ function RequestKey() {
       return result
     },
   })
-  console.info(requestKeyMutation.data)
+
   return (
     <div>
       <h3>[server] Request Key from Server (GET /keys/:address)</h3>
@@ -316,7 +316,6 @@ function GrantPermissions() {
               `${address.toLowerCase()}-keys`,
             )) || '{}',
           ) as Key
-          console.info(key)
 
           // if `expry` is present in both `key` and `permissions`, pick the lower value
           const expiry = Math.min(key.expiry, permissions({ chainId }).expiry)
@@ -376,8 +375,6 @@ function Mint() {
       },
     },
   })
-  console.info('data', data)
-  console.info('txHashData', txHashData)
 
   const blockExplorer = chain?.blockExplorers?.default?.url
   const transactionLink = (hash: string) =>

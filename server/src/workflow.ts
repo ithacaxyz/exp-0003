@@ -7,7 +7,7 @@ import { Chains } from 'porto'
 import { Hex, Json, P256, Signature } from 'ox'
 import { NonRetryableError } from 'cloudflare:workflows'
 
-import type { TPorto } from '#config.ts'
+import { getPorto } from '#config.ts'
 import type { Env, KeyPair, Schedule } from '#types.ts'
 
 class TransactionInsertedFakeError extends Error {
@@ -20,7 +20,6 @@ class TransactionInsertedFakeError extends Error {
 export type Params = {
   count: number
   keyPair: KeyPair
-  provider: TPorto['provider']
 }
 
 export class Exp3Workflow extends WorkflowEntrypoint<Env, Params> {
@@ -63,11 +62,12 @@ export class Exp3Workflow extends WorkflowEntrypoint<Env, Params> {
         },
         async () => {
           try {
+            const { keyPair } = event.payload
             const { calls, address } = scheduleResult
-            const { keyPair, provider } = event.payload
-            console.info('provider', typeof provider, provider)
 
-            const { digest, ...request } = await provider.request({
+            const porto = getPorto()
+
+            const { digest, ...request } = await porto.provider.request({
               method: 'wallet_prepareCalls',
               params: [
                 {
@@ -89,7 +89,7 @@ export class Exp3Workflow extends WorkflowEntrypoint<Env, Params> {
               }),
             )
 
-            const [sendPreparedCallsResult] = await provider.request({
+            const [sendPreparedCallsResult] = await porto.provider.request({
               method: 'wallet_sendPreparedCalls',
               params: [
                 {

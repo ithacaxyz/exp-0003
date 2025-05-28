@@ -1,5 +1,5 @@
 import { http } from 'viem'
-import { Porto, Storage } from 'porto'
+import { Porto } from 'porto'
 import { baseSepolia } from 'porto/Chains'
 
 export type TPorto = ReturnType<typeof getPorto>
@@ -10,5 +10,4 @@ export const getPorto = () =>
     transports: {
       [baseSepolia.id]: http(),
     },
-    storage: Storage.memory(),
   })

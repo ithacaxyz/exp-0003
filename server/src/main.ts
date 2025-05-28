@@ -10,7 +10,6 @@ import { getConnInfo } from 'hono/cloudflare-workers'
 
 import { debugApp } from '#debug.ts'
 import type { Env } from '#types.ts'
-import { getPorto } from '#config.ts'
 import { ServerKeyPair } from '#keys.ts'
 import wranglerJSON from '#wrangler.json'
 import { Exp3Workflow } from '#workflow.ts'
@@ -167,13 +166,10 @@ app.post('/workflow/:address', async (context) => {
     return context.json({ error: 'Key expired and deleted' }, 400)
   }
 
-  const porto = getPorto()
-
   const instance = await context.env.EXP3_WORKFLOW.create({
     id: crypto.randomUUID(),
     params: {
       keyPair,
-      provider: porto.provider,
       count: Number(count || 6),
     },
   })
