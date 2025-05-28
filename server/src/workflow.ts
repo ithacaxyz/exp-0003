@@ -127,15 +127,42 @@ export class Exp3Workflow extends WorkflowEntrypoint<Env, Params> {
             // we will continue throwing an 'error' so that the workflow can be retried
             throw new TransactionInsertedFakeError('transaction inserted')
           } catch (error) {
-            const errorMessage = error instanceof Error ? error.message : error
-            console.error(errorMessage)
+            if (error instanceof Error) {
+              console.error(
+                JSON.stringify(
+                  {
+                    name: error.name,
+                    cause: error.cause,
+                    stack: error.stack,
+                    errorMessage: error.message,
+                  },
+                  undefined,
+                  2,
+                ),
+              )
+            }
           }
         },
       )
     } catch (error) {
       if (error instanceof TransactionInsertedFakeError)
         console.info('transaction processing completed')
-      else console.error(error)
+      else {
+        if (error instanceof Error) {
+          console.error(
+            JSON.stringify(
+              {
+                name: error.name,
+                cause: error.cause,
+                stack: error.stack,
+                errorMessage: error.message,
+              },
+              undefined,
+              2,
+            ),
+          )
+        } else console.error('rip', error)
+      }
     }
 
     // cleanup

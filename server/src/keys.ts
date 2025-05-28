@@ -34,7 +34,7 @@ export const ServerKeyPair = {
       VALUES (?, ?, ?, ?, ?, ?);`,
     ).bind(address.toLowerCase(), publicKey, privateKey, role, 'p256', expiry)
 
-    const [deleteQuery, insertQuery] = await env.DB.batch<D1PreparedStatement>([
+    const [, insertQuery] = await env.DB.batch<D1PreparedStatement>([
       deleteStatement,
       insertStatement,
     ])
