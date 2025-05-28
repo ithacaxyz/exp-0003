@@ -1,10 +1,9 @@
 name: Deploy
 
 on:
-  # temporarily restrict to workflow_dispatch
   workflow_dispatch:
-  # push:
-  #   branches: [main]
+  push:
+    branches: [main]
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
@@ -62,4 +61,7 @@ jobs:
           pnpm dlx wrangler@latest deploy \
             --config='wrangler.json' \
             --keep-vars \
-            --var 'ENVIRONMENT:production'
+            --var 'NODE_ENV:production' \
+            --var 'ENVIRONMENT:production' \
+            --var 'VITE_ENVIRONMENT:production' \
+            --var 'VITE_SERVER_URL:https://exp-0003-server.evm.workers.dev'
