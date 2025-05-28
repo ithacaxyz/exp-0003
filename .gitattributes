@@ -2,8 +2,10 @@
 .gitattributes !filter !diff
 
 .dev.vars linguist-language=Dotenv
+.env.example linguist-language=Dotenv
 .dev.vars.example linguist-language=Dotenv
 
+wrangler.json linguist-language=JSON-with-Comments
 biome.json linguist-language=JSON-with-Comments
 .vscode/*.json linguist-language=JSON-with-Comments
 tsconfig.json linguist-language=JSON-with-Comments

@@ -1,19 +1,23 @@
 import {
-  useDebug,
-  useBalance,
-  nukeEverything,
-  useNukeEverything,
-} from './hooks.ts'
+  useChainId,
+  useConnect,
+  useAccount,
+  useSendCalls,
+  useDisconnect,
+  useConnectors,
+  useCallsStatus,
+  useReadContract,
+} from 'wagmi'
+import * as React from 'react'
 import { Hooks } from 'porto/wagmi'
-import { porto, wagmiConfig } from './config.ts'
-import { ExperimentERC20 } from './contracts.ts'
-import { useAccount, useConnectors } from 'wagmi'
-import { truncateHexString } from './utilities.ts'
 import { useMutation } from '@tanstack/react-query'
 import { type Errors, type Hex, Json, Value } from 'ox'
-import { SERVER_URL, permissions } from './constants.ts'
-import { useEffect, useState, useSyncExternalStore } from 'react'
-import { useCallsStatus, useSendCalls } from 'wagmi/experimental'
+
+import { exp1Config } from '#contracts.ts'
+import { porto, wagmiConfig } from '#config.ts'
+import { truncateHexString } from '#utilities.ts'
+import { SERVER_URL, permissions } from '#constants.ts'
+import { useDebug, nukeEverything, useNukeEverything } from '#hooks.ts'
 
 export function App() {
   useNukeEverything()
@@ -48,9 +52,8 @@ export function App() {
 
 function DebugLink() {
   const { address } = useAccount()
-
   const connectors = useConnectors()
-  const disconnect = Hooks.useDisconnect()
+  const disconnect = useDisconnect()
 
   const searchParams = new URLSearchParams({
     pretty: 'true',
@@ -93,7 +96,7 @@ function DebugLink() {
         onClick={async () => {
           await nukeEverything()
           await Promise.all(
-            connectors.map((c) => disconnect.mutateAsync({ connector: c })),
+            connectors.map((c) => disconnect.disconnectAsync({ connector: c })),
           )
         }}
         type="button"
@@ -116,21 +119,24 @@ function DebugLink() {
 }
 
 function Connect() {
+  const chainId = useChainId()
   const label = `_exp-0003-${Math.floor(Date.now() / 1_000)}`
-  const [grantPermissions, setGrantPermissions] = useState<boolean>(true)
-
-  const connectors = useConnectors()
-  const connector = connectors.find((x) => x.id === 'xyz.ithaca.porto')
+  const [grantPermissions, setGrantPermissions] = React.useState<boolean>(true)
 
   const { address } = useAccount()
-  const connect = Hooks.useConnect()
-  const disconnect = Hooks.useDisconnect()
+  const connect = useConnect()
+  const disconnect = useDisconnect()
+
+  const [connector] = connect.connectors
+
   const allPermissions_ = Hooks.usePermissions()
   const latestPermissions = allPermissions_.data?.at(-1)
 
   const disconnectFromAll = async () => {
-    await Promise.all(connectors.map((c) => c.disconnect().catch(() => {})))
-    await disconnect.mutateAsync({ connector })
+    await Promise.all(
+      connect.connectors.map((c) => c.disconnect().catch(() => {})),
+    )
+    await disconnect.disconnectAsync({ connector })
   }
 
   return (
@@ -162,11 +168,14 @@ function Connect() {
             disabled={connect.status === 'pending'}
             onClick={async () =>
               disconnectFromAll().then(() =>
-                connect.mutateAsync({
+                connect.connect({
                   connector,
-                  grantPermissions: grantPermissions
-                    ? permissions()
-                    : undefined,
+                  capabilities: {
+                    createAccount: false,
+                    grantPermissions: grantPermissions
+                      ? permissions({ chainId })
+                      : undefined,
+                  },
                 }),
               )
             }
@@ -179,12 +188,14 @@ function Connect() {
             onClick={async () =>
               disconnectFromAll().then(() => {
                 nukeEverything()
-                connect.mutate({
+                connect.connect({
                   connector,
-                  createAccount: { label },
-                  grantPermissions: grantPermissions
-                    ? permissions()
-                    : undefined,
+                  capabilities: {
+                    createAccount: { label },
+                    grantPermissions: grantPermissions
+                      ? permissions({ chainId })
+                      : undefined,
+                  },
                 })
               })
             }
@@ -235,6 +246,7 @@ interface Key {
 }
 
 function RequestKey() {
+  const chainId = useChainId()
   const { address } = useAccount()
 
   // const { refetch } = useDebug({ enabled: !!address, address })
@@ -243,7 +255,7 @@ function RequestKey() {
     mutationFn: async () => {
       if (!address) return
       const searchParams = new URLSearchParams({
-        expiry: permissions().expiry.toString(),
+        expiry: permissions({ chainId }).expiry.toString(),
       })
       const response = await fetch(
         `${SERVER_URL}/keys/${address.toLowerCase()}?${searchParams.toString()}`,
@@ -256,6 +268,7 @@ function RequestKey() {
       return result
     },
   })
+
   return (
     <div>
       <h3>[server] Request Key from Server (GET /keys/:address)</h3>
@@ -287,13 +300,12 @@ function RequestKey() {
 }
 
 function GrantPermissions() {
+  const chainId = useChainId()
   const { address } = useAccount()
   const grantPermissions = Hooks.useGrantPermissions()
   return (
     <div>
-      <h3>
-        [client] Grant Permissions to Server (experimental_grantPermissions)
-      </h3>
+      <h3>[client] Grant Permissions to Server (grantPermissions)</h3>
       <form
         onSubmit={async (event) => {
           event.preventDefault()
@@ -306,13 +318,13 @@ function GrantPermissions() {
           ) as Key
 
           // if `expry` is present in both `key` and `permissions`, pick the lower value
-          const expiry = Math.min(key.expiry, permissions().expiry)
+          const expiry = Math.min(key.expiry, permissions({ chainId }).expiry)
 
           grantPermissions.mutate({
             key,
             expiry,
             address,
-            permissions: permissions().permissions,
+            permissions: permissions({ chainId }).permissions,
           })
         }}
       >
@@ -346,29 +358,48 @@ function GrantPermissions() {
 }
 
 function Mint() {
-  const { address } = useAccount()
-  const { data: id, error, isPending, sendCalls } = useSendCalls()
-  const { isLoading: isConfirming, isSuccess: isConfirmed } = useCallsStatus({
-    id: id as string,
+  const chainId = useChainId()
+  const { address, chain } = useAccount()
+  const { data, error, isPending, sendCalls } = useSendCalls()
+  const {
+    data: txHashData,
+    isLoading: isConfirming,
+    isSuccess: isConfirmed,
+  } = useCallsStatus({
+    id: data?.id as unknown as string,
     query: {
-      enabled: !!id,
+      enabled: !!data?.id,
       refetchInterval: ({ state }) => {
-        if (state.data?.status === 'CONFIRMED') return false
+        if (state.data?.status === 'success') return false
         return 1_000
       },
     },
   })
 
-  const balance = useBalance()
-  const [transactions, setTransactions] = useState<Set<string>>(new Set())
+  const blockExplorer = chain?.blockExplorers?.default?.url
+  const transactionLink = (hash: string) =>
+    blockExplorer ? `${blockExplorer}/tx/${hash}` : hash
 
-  useEffect(() => {
-    if (id) setTransactions((prev) => new Set([...prev, id]))
-  }, [id])
+  const balance = useReadContract({
+    address: exp1Config.address[chainId],
+    abi: exp1Config.abi,
+    functionName: 'balanceOf',
+    args: [address!],
+  })
+
+  const [transactions, setTransactions] = React.useState<Set<string>>(new Set())
+  React.useEffect(() => {
+    if (!txHashData?.id) return
+    const hash = txHashData.receipts?.at(0)?.transactionHash
+    if (!hash) return
+    setTransactions((prev) => new Set([...prev, hash]))
+  }, [txHashData?.id, txHashData?.receipts])
 
   return (
     <div>
-      <h3>[client] Mint EXP [balance: {balance}]</h3>
+      <h3>
+        [client] Mint EXP [balance: {Value.formatEther(balance.data ?? 0n)}]
+      </h3>
       <form
         onSubmit={(event) => {
           event.preventDefault()
@@ -376,8 +407,8 @@ function Mint() {
             calls: [
               {
                 functionName: 'mint',
-                abi: ExperimentERC20.abi,
-                to: ExperimentERC20.address[0],
+                abi: exp1Config.abi,
+                to: exp1Config.address[chainId],
                 args: [address!, Value.fromEther('100')],
               },
             ],
@@ -398,7 +429,7 @@ function Mint() {
             <a
               target="_blank"
               rel="noopener noreferrer"
-              href={`https://odyssey-explorer.ithaca.xyz/tx/${tx}`}
+              href={transactionLink(tx)}
             >
               {tx}
             </a>
@@ -427,9 +458,14 @@ const schedules = {
 type Schedule = keyof typeof schedules
 
 function DemoScheduler() {
-  const { address } = useAccount()
-  const [error, setError] = useState<string | null>(null)
+  const chainId = useChainId()
+  const { address, chain } = useAccount()
+  const [error, setError] = React.useState<string | null>(null)
   const { data: debugData } = useDebug({ address, enabled: !!address })
+
+  const blockExplorer = chain?.blockExplorers?.default?.url
+  const transactionLink = (hash: string) =>
+    blockExplorer ? `${blockExplorer}/tx/${hash}` : hash
 
   const scheduleTransactionMutation = useMutation({
     mutationFn: async ({
@@ -443,7 +479,7 @@ function DemoScheduler() {
     }) => {
       if (!address) return
 
-      const { expiry } = permissions()
+      const { expiry } = permissions({ chainId })
 
       if (expiry < Math.floor(Date.now() / 1_000)) {
         throw new Error('Key expired')
@@ -473,6 +509,7 @@ function DemoScheduler() {
 
       const response = await fetch(
         `${SERVER_URL}/workflow/${address.toLowerCase()}?count=${count}`,
+        { method: 'POST' },
       )
       return Json.parse(await response.text())
     },
@@ -594,7 +631,7 @@ function DemoScheduler() {
                   <a
                     target="_blank"
                     rel="noreferrer"
-                    href={`https://odyssey-explorer.ithaca.xyz/tx/${transaction.hash}`}
+                    href={transactionLink(transaction.hash)}
                   >
                     {truncateHexString({
                       length: 12,
@@ -611,7 +648,7 @@ function DemoScheduler() {
 }
 
 function State() {
-  const state = useSyncExternalStore(
+  const state = React.useSyncExternalStore(
     // @ts-ignore
     porto._internal.store.subscribe,
     // @ts-ignore
@@ -619,6 +656,7 @@ function State() {
     // @ts-ignore
     () => porto._internal.store.getState(),
   )
+
   return (
     <div>
       <h3>State</h3>
@@ -626,8 +664,8 @@ function State() {
         <p>Disconnected</p>
       ) : (
         <>
-          <p>Address: {state.accounts[0].address}</p>
-          <p>Chain ID: {state.chain.id}</p>
+          <p>Address: {state?.accounts?.[0]?.address}</p>
+          <p>Chain ID: {state?.chainId}</p>
           <div>
             Keys:{' '}
             <pre>{Json.stringify(state.accounts?.[0]?.keys, null, 2)}</pre>
@@ -639,8 +677,9 @@ function State() {
 }
 
 function Events() {
-  const [responses, setResponses] = useState<Record<string, unknown>>({})
-  useEffect(() => {
+  const [responses, setResponses] = React.useState<Record<string, unknown>>({})
+
+  React.useEffect(() => {
     const handleResponse = (event: string) => (response: unknown) =>
       setResponses((responses) => ({
         ...responses,

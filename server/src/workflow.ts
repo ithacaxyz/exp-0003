@@ -4,15 +4,16 @@ import {
   type WorkflowEvent,
 } from 'cloudflare:workers'
 import { Chains } from 'porto'
-import { porto } from './config.ts'
 import { Hex, Json, P256, Signature } from 'ox'
-import type { Env, KeyPair, Schedule } from './types.ts'
 import { NonRetryableError } from 'cloudflare:workflows'
 
+import { getPorto } from '#config.ts'
+import type { Env, KeyPair, Schedule } from '#types.ts'
+
 class TransactionInsertedFakeError extends Error {
+  override readonly name = 'TransactionInsertedFakeError'
   constructor(message: string) {
-    super(message)
-    this.name = 'TransactionInsertedFakeError'
+    super(`[SUCCESS]: Transaction inserted\n${message}`)
   }
 }
 
@@ -21,7 +22,7 @@ export type Params = {
   keyPair: KeyPair
 }
 
-export class Workflow01 extends WorkflowEntrypoint<Env, Params> {
+export class Exp3Workflow extends WorkflowEntrypoint<Env, Params> {
   constructor(ctx: ExecutionContext, env: Env) {
     super(ctx, env)
   }
@@ -35,11 +36,13 @@ export class Workflow01 extends WorkflowEntrypoint<Env, Params> {
       { timeout: 3_000 },
       async () => {
         if (!event.payload) throw new NonRetryableError('missing payload')
+
         const schedule = await this.env.DB.prepare(
           /* sql */ `SELECT * FROM schedules WHERE address = ?;`,
         )
           .bind(event.payload.keyPair.address)
           .first<Schedule>()
+
         if (!schedule) throw new NonRetryableError('schedule not found')
         return schedule
       },
@@ -58,69 +61,114 @@ export class Workflow01 extends WorkflowEntrypoint<Env, Params> {
           },
         },
         async () => {
-          const { keyPair } = event.payload
-          const { calls, address } = scheduleResult
+          try {
+            const { keyPair } = event.payload
+            const { calls, address } = scheduleResult
 
-          const { digest, ...request } = await porto.provider.request({
-            method: 'wallet_prepareCalls',
-            params: [
-              {
-                from: address,
-                calls: Json.parse(calls),
-                chainId: Hex.fromNumber(Chains.odysseyTestnet.id),
-              },
-            ],
-          })
+            const porto = getPorto()
 
-          const signature = Signature.toHex(
-            P256.sign({
-              payload: digest,
-              privateKey: keyPair.private_key,
-            }),
-          )
-
-          const [sendPreparedCallsResult] = await porto.provider.request({
-            method: 'wallet_sendPreparedCalls',
-            params: [
-              {
-                ...request,
-                signature: {
-                  value: signature,
-                  type: keyPair.type,
-                  publicKey: keyPair.public_key,
+            const { digest, ...request } = await porto.provider.request({
+              method: 'wallet_prepareCalls',
+              params: [
+                {
+                  key: {
+                    type: keyPair.type,
+                    publicKey: keyPair.public_key,
+                  },
+                  from: address,
+                  calls: Json.parse(calls),
+                  chainId: Hex.fromNumber(Chains.baseSepolia.id),
                 },
-              },
-            ],
-          })
+              ],
+            })
 
-          const hash = sendPreparedCallsResult?.id
-          if (!hash) {
-            console.error(
-              `failed to send prepared calls for ${address}. No hash returned from wallet_sendPreparedCalls`,
+            const signature = Signature.toHex(
+              P256.sign({
+                payload: digest,
+                privateKey: keyPair.private_key,
+              }),
             )
-            throw new NonRetryableError('failed to send prepared calls')
+
+            const [sendPreparedCallsResult] = await porto.provider.request({
+              method: 'wallet_sendPreparedCalls',
+              params: [
+                {
+                  ...request,
+                  signature,
+                  key: {
+                    type: keyPair.type,
+                    publicKey: keyPair.public_key,
+                  },
+                },
+              ],
+            })
+
+            const hash = sendPreparedCallsResult?.id
+            if (!hash) {
+              console.error(
+                `failed to send prepared calls for ${address}. No hash returned from wallet_sendPreparedCalls`,
+              )
+              throw new NonRetryableError('failed to send prepared calls')
+            }
+
+            const insertQuery = await this.env.DB.prepare(
+              /* sql */ `INSERT INTO transactions (address, hash, role, public_key) VALUES (?, ?, ?, ?)`,
+            )
+              .bind(address, hash, keyPair.role, keyPair.public_key)
+              .run()
+
+            if (!insertQuery.success) {
+              throw new NonRetryableError('failed to insert transaction')
+            }
+
+            console.info(`transaction inserted: ${hash}`)
+
+            // we will continue throwing an 'error' so that the workflow can be retried
+            throw new TransactionInsertedFakeError('transaction inserted')
+          } catch (error) {
+            if (error instanceof TransactionInsertedFakeError) throw error
+            if (error instanceof Error) {
+              console.warn(
+                'STEP_02: error',
+                error instanceof TransactionInsertedFakeError,
+              )
+
+              console.error(
+                Json.stringify(
+                  {
+                    name: error.name,
+                    cause: error.cause,
+                    stack: error.stack,
+                    errorMessage: error.message,
+                  },
+                  undefined,
+                  2,
+                ),
+              )
+            }
           }
-
-          const insertQuery = await this.env.DB.prepare(
-            /* sql */ `INSERT INTO transactions (address, hash, role, public_key) VALUES (?, ?, ?, ?)`,
-          )
-            .bind(address, hash, keyPair.role, keyPair.public_key)
-            .run()
-
-          if (!insertQuery.success) {
-            throw new NonRetryableError('failed to insert transaction')
-          }
-
-          console.info(`transaction inserted: ${hash}`)
-
-          // we will continue throwing an 'error' so that the workflow can be retried
-          throw new TransactionInsertedFakeError('transaction inserted')
         },
       )
     } catch (error) {
       if (error instanceof TransactionInsertedFakeError)
         console.info('transaction processing completed')
-      else console.error(error)
+      else {
+        if (error instanceof Error) {
+          console.warn('STEP_03: error')
+          console.error(
+            Json.stringify(
+              {
+                name: error.name,
+                cause: error.cause,
+                stack: error.stack,
+                errorMessage: error.message,
+              },
+              undefined,
+              2,
+            ),
+          )
+        } else console.error('rip', error)
+      }
     }
 
     // cleanup

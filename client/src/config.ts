@@ -1,23 +1,18 @@
-import { Implementation, Porto } from 'porto'
-import { odysseyTestnet } from 'wagmi/chains'
+import { Porto } from 'porto'
+import { baseSepolia } from 'porto/Chains'
+import { porto as portoConnector } from 'porto/wagmi'
 import { http, createConfig, createStorage } from 'wagmi'
 import { MutationCache, QueryCache, QueryClient } from '@tanstack/react-query'
 
-const DISABLE_DIALOG = true // we're introducing dialog as own feature in own blog post
-
-const implementation = DISABLE_DIALOG
-  ? Implementation.local()
-  : Implementation.dialog({
-      host: import.meta.env.VITE_DIALOG_HOST ?? `https://exp.porto.sh/dialog`,
-    })
-
-export const porto = Porto.create({ implementation })
+export const porto = Porto.create()
 
 export const wagmiConfig = createConfig({
-  chains: [odysseyTestnet],
+  chains: [baseSepolia],
+  connectors: [portoConnector()],
+  multiInjectedProviderDiscovery: false,
   storage: createStorage({ storage: window.localStorage }),
   transports: {
-    [odysseyTestnet.id]: http(),
+    [baseSepolia.id]: http(),
   },
 })
 
@@ -48,3 +43,9 @@ export const queryClient: QueryClient = new QueryClient({
     },
   }),
 })
+
+declare module 'wagmi' {
+  interface Register {
+    config: typeof wagmiConfig
+  }
+}

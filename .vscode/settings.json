@@ -4,8 +4,12 @@
   "typescript.tsdk": "node_modules/typescript/lib",
   "typescript.enablePromptUseWorkspaceTsdk": true,
   "typescript.preferences.preferTypeOnlyAutoImports": true,
-  "javascript.preferences.autoImportFileExcludePatterns": ["**/index.js"],
-  "typescript.preferences.autoImportFileExcludePatterns": ["**/index.js"],
+  "javascript.preferences.autoImportFileExcludePatterns": [
+    "**/index.js"
+  ],
+  "typescript.preferences.autoImportFileExcludePatterns": [
+    "**/index.js"
+  ],
   "[json]": {
     "editor.defaultFormatter": "biomejs.biome"
   },
@@ -31,12 +35,13 @@
     "editor.defaultFormatter": "vscode.html-language-features"
   },
   "files.exclude": {
-    "**/.wrangler": true
+    // "**/.wrangler": true
   },
   "files.associations": {
     ".env.*": "dotenv",
     ".dev.vars": "dotenv",
     "biome.json": "jsonc",
+    "wrangler.json": "jsonc",
     ".vscode/*.json": "jsonc",
     ".dev.vars.example": "dotenv"
   },

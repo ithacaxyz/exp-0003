@@ -1,12 +1,10 @@
 import type { Address, Hex } from 'ox'
-import type { Params as WorkflowParams } from './workflow.ts'
 
-export interface Env {
-  ADMIN_USERNAME: string
-  ADMIN_PASSWORD: string
-  ENVIRONMENT: 'development' | 'production'
+import type { Params as WorkflowParams } from '#workflow.ts'
+
+export interface Env extends Environment {
   DB: D1Database
-  WORKFLOW_01: Workflow<WorkflowParams>
+  EXP3_WORKFLOW: Workflow<WorkflowParams>
 }
 
 interface BaseAttributes {
@@ -43,4 +41,5 @@ export type KeyPair = Pretty<
   }
 >
 
+// https://totaltypescript.com/concepts/the-prettify-helper
 export type Pretty<T> = { [K in keyof T]: T[K] } & {}

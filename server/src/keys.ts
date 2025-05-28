@@ -1,5 +1,6 @@
 import { P256, PublicKey } from 'ox'
-import type { KeyPair, Env } from './types.ts'
+
+import type { KeyPair, Env } from '#types.ts'
 
 type GeneratedKeyPair = Omit<KeyPair, 'private_key' | 'id' | 'created_at'>
 
@@ -33,7 +34,7 @@ export const ServerKeyPair = {
       VALUES (?, ?, ?, ?, ?, ?);`,
     ).bind(address.toLowerCase(), publicKey, privateKey, role, 'p256', expiry)
 
-    const [deleteQuery, insertQuery] = await env.DB.batch<D1PreparedStatement>([
+    const [, insertQuery] = await env.DB.batch<D1PreparedStatement>([
       deleteStatement,
       insertStatement,
     ])

@@ -1,18 +1,19 @@
 import * as React from 'react'
 import { queryClient } from './config.ts'
 import { SERVER_URL } from './constants.ts'
-import { ExperimentERC20 } from './contracts.ts'
+import { exp1Config } from './contracts.ts'
 import { useQuery } from '@tanstack/react-query'
-import { useAccount, useReadContract } from 'wagmi'
 import { Address, type Hex, Json, Value } from 'ox'
+import { useAccount, useChainId, useReadContract } from 'wagmi'
 
 export function useBalance() {
+  const chainId = useChainId()
   const { address } = useAccount()
   const { data: balance } = useReadContract({
     args: [address!],
-    abi: ExperimentERC20.abi,
+    abi: exp1Config.abi,
     functionName: 'balanceOf',
-    address: ExperimentERC20.address.at(0),
+    address: exp1Config.address[chainId],
     query: { enabled: !!address, refetchInterval: 2_000 },
   })
 
