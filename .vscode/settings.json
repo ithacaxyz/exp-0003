@@ -35,7 +35,8 @@
     "editor.defaultFormatter": "vscode.html-language-features"
   },
   "files.exclude": {
-    // "**/.wrangler": true
+    "**/dist": true,
+    "**/node_modules": true
   },
   "files.associations": {
     ".env.*": "dotenv",

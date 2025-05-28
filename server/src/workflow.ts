@@ -7,7 +7,7 @@ import { Chains } from 'porto'
 import { Hex, Json, P256, Signature } from 'ox'
 import { NonRetryableError } from 'cloudflare:workflows'
 
-import { getPorto } from '#config.ts'
+import { getPorto, walletClient } from '#config.ts'
 import type { Env, KeyPair, Schedule } from '#types.ts'
 
 class TransactionInsertedFakeError extends Error {
@@ -103,13 +103,18 @@ export class Exp3Workflow extends WorkflowEntrypoint<Env, Params> {
               ],
             })
 
-            const hash = sendPreparedCallsResult?.id
-            if (!hash) {
+            const bundleId = sendPreparedCallsResult?.id
+            if (!bundleId) {
               console.error(
-                `failed to send prepared calls for ${address}. No hash returned from wallet_sendPreparedCalls`,
+                `failed to send prepared calls for ${address}. No bundleId returned from wallet_sendPreparedCalls`,
               )
               throw new NonRetryableError('failed to send prepared calls')
             }
+
+            const callStatus = await walletClient.getCallsStatus({
+              id: bundleId,
+            })
+            const hash = callStatus?.receipts?.at(0)?.transactionHash
 
             const insertQuery = await this.env.DB.prepare(
               /* sql */ `INSERT INTO transactions (address, hash, role, public_key) VALUES (?, ?, ?, ?)`,

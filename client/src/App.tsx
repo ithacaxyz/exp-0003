@@ -10,7 +10,6 @@ import {
 } from 'wagmi'
 import * as React from 'react'
 import { Hooks } from 'porto/wagmi'
-import { getCallsStatus } from 'wagmi/actions'
 import { useMutation } from '@tanstack/react-query'
 import { type Errors, type Hex, Json, Value } from 'ox'
 
@@ -498,6 +497,7 @@ function DemoScheduler() {
       return { ...Json.parse(await response.text()), count }
     },
     onSuccess: (data) => {
+      console.info('scheduleTransactionMutation onSuccess', data)
       startWorkflowMutation.mutate({ count: data.count })
     },
   })
@@ -616,13 +616,7 @@ function DemoScheduler() {
       )}
       <ul style={{ paddingLeft: 10 }}>
         {debugData
-          ? debugData?.transactions?.toReversed()?.map(async (transaction) => {
-              const callStatus = await getCallsStatus(wagmiConfig, {
-                id: transaction.id.toString(),
-              })
-              const hash = callStatus?.receipts?.at(0)?.transactionHash
-              if (!hash) return
-
+          ? debugData?.transactions?.toReversed()?.map((transaction) => {
               return (
                 <li key={transaction.id} style={{ marginBottom: '8px' }}>
                   <p style={{ margin: 3 }}>
@@ -637,11 +631,11 @@ function DemoScheduler() {
                   <a
                     target="_blank"
                     rel="noreferrer"
-                    href={transactionLink(hash)}
+                    href={transactionLink(transaction.hash)}
                   >
                     {truncateHexString({
                       length: 12,
-                      address: hash,
+                      address: transaction.hash,
                     })}
                   </a>
                 </li>
