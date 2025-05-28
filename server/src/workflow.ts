@@ -94,15 +94,14 @@ export class Exp3Workflow extends WorkflowEntrypoint<Env, Params> {
               params: [
                 {
                   ...request,
-                  signature: {
-                    value: signature,
+                  signature,
+                  key: {
                     type: keyPair.type,
                     publicKey: keyPair.public_key,
                   },
                 },
               ],
             })
-            console.info('sendPreparedCallsResult', sendPreparedCallsResult)
 
             const hash = sendPreparedCallsResult?.id
             if (!hash) {
@@ -128,8 +127,9 @@ export class Exp3Workflow extends WorkflowEntrypoint<Env, Params> {
             throw new TransactionInsertedFakeError('transaction inserted')
           } catch (error) {
             if (error instanceof Error) {
+              console.warn('STEP_02: error')
               console.error(
-                JSON.stringify(
+                Json.stringify(
                   {
                     name: error.name,
                     cause: error.cause,
@@ -149,8 +149,9 @@ export class Exp3Workflow extends WorkflowEntrypoint<Env, Params> {
         console.info('transaction processing completed')
       else {
         if (error instanceof Error) {
+          console.warn('STEP_03: error')
           console.error(
-            JSON.stringify(
+            Json.stringify(
               {
                 name: error.name,
                 cause: error.cause,
