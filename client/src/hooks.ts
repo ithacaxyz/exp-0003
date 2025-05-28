@@ -78,7 +78,7 @@ export function useNukeEverything() {
 export function nukeEverything() {
   if (import.meta.env.MODE !== 'development') return
   // clear everything
-  return fetch(`${SERVER_URL}/debug/nuke-everything`)
+  return fetch(`${SERVER_URL}/debug/nuke/everything`)
     .then(() => {
       queryClient.clear()
       queryClient.resetQueries()

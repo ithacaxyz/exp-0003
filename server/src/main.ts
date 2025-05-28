@@ -2,7 +2,6 @@ import { Hono } from 'hono'
 import { cors } from 'hono/cors'
 import { Address, Json } from 'ox'
 import { logger } from 'hono/logger'
-import { timeout } from 'hono/timeout'
 import { requestId } from 'hono/request-id'
 import { prettyJSON } from 'hono/pretty-json'
 import { HTTPException } from 'hono/http-exception'
@@ -18,7 +17,6 @@ import { actions, buildActionCall } from '#calls.ts'
 const app = new Hono<{ Bindings: Env }>()
 
 app.use(logger())
-app.use('*', timeout(4_000))
 app.use(prettyJSON({ space: 2 })) // append `?pretty` to any request to get prettified JSON
 app.use('*', requestId({ headerName: `${wranglerJSON.name}-Request-Id` }))
 app.use(
