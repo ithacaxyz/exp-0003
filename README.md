@@ -14,7 +14,7 @@
     autonumber
     participant C as Client
     participant S as Server
-    participant P as Porton
+    participant P as Porto
   
     C ->> S: GET /keys/:address?expiry&expiry=
     S ->> S: keyPair = P256.randomKeyPair()
