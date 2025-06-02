@@ -6,21 +6,26 @@ import {
   useDisconnect,
   useConnectors,
   useCallsStatus,
-  useReadContract,
 } from 'wagmi'
 import * as React from 'react'
 import { Hooks } from 'porto/wagmi'
 import { useMutation } from '@tanstack/react-query'
 import { type Errors, type Hex, Json, Value } from 'ox'
 
+import {
+  useDebug,
+  useBalance,
+  nukeEverything,
+  useNukeEverything,
+} from '#hooks.ts'
 import { exp1Config } from '#contracts.ts'
 import { porto, wagmiConfig } from '#config.ts'
-import { truncateHexString } from '#utilities.ts'
+import { StringFormatter } from '#utilities.ts'
 import { SERVER_URL, permissions } from '#constants.ts'
-import { useDebug, nukeEverything, useNukeEverything } from '#hooks.ts'
 
 export function App() {
   useNukeEverything()
+  const balance = useBalance()
 
   return (
     <main>
@@ -43,7 +48,13 @@ export function App() {
       <hr />
       <GrantPermissions />
       <hr />
-      <Mint />
+      {balance ? (
+        <Fund />
+      ) : (
+        <div style={{ opacity: 0.5 }}>
+          <Mint />
+        </div>
+      )}
       <hr />
       <DemoScheduler />
     </main>
@@ -124,6 +135,7 @@ function Connect() {
   const [grantPermissions, setGrantPermissions] = React.useState<boolean>(true)
 
   const { address } = useAccount()
+
   const connect = useConnect()
   const disconnect = useDisconnect()
 
@@ -138,6 +150,8 @@ function Connect() {
     )
     await disconnect.disconnectAsync({ connector })
   }
+
+  const balance = useBalance()
 
   return (
     <div>
@@ -219,6 +233,8 @@ function Connect() {
       <p>{connect.error?.message}</p>
       {address && <p>Account: {address}</p>}
 
+      <p>Balance: {balance ?? 0}</p>
+
       {address && latestPermissions && (
         <details
           style={{ marginTop: '5px' }}
@@ -226,7 +242,7 @@ function Connect() {
         >
           <summary>
             <span style={{ marginRight: '8px' }}>Permissions:</span>
-            {truncateHexString({
+            {StringFormatter.truncateHexString({
               address: latestPermissions?.key.publicKey,
               length: 12,
             })}
@@ -284,7 +300,7 @@ function RequestKey() {
       {requestKeyMutation.data ? (
         <details>
           <summary style={{ marginTop: '1rem' }}>
-            {truncateHexString({
+            {StringFormatter.truncateHexString({
               address: requestKeyMutation.data?.publicKey,
               length: 12,
             })}{' '}
@@ -345,7 +361,7 @@ function GrantPermissions() {
         <details>
           <summary style={{ marginTop: '1rem' }}>
             Permissions:{' '}
-            {truncateHexString({
+            {StringFormatter.truncateHexString({
               address: grantPermissions.data?.key.publicKey,
               length: 12,
             })}
@@ -353,6 +369,92 @@ function GrantPermissions() {
           <pre>{Json.stringify(grantPermissions.data, undefined, 2)}</pre>
         </details>
       ) : null}
+    </div>
+  )
+}
+
+function Fund() {
+  const chainId = useChainId()
+  const { address, chain } = useAccount()
+  const { data, error, isPending, sendCalls } = useSendCalls()
+  const {
+    data: txHashData,
+    isLoading: isConfirming,
+    isSuccess: isConfirmed,
+  } = useCallsStatus({
+    id: data?.id as unknown as string,
+    query: {
+      enabled: !!data?.id,
+      refetchInterval: ({ state }) => {
+        if (state.data?.status === 'success') return false
+        return 1_000
+      },
+    },
+  })
+
+  const blockExplorer = chain?.blockExplorers?.default?.url
+  const transactionLink = (hash: string) =>
+    blockExplorer ? `${blockExplorer}/tx/${hash}` : hash
+
+  const balance = useBalance()
+
+  const [transactions, setTransactions] = React.useState<Set<string>>(new Set())
+  React.useEffect(() => {
+    if (!txHashData?.id) return
+    const hash = txHashData.receipts?.at(0)?.transactionHash
+    if (!hash) return
+    setTransactions((prev) => new Set([...prev, hash]))
+  }, [txHashData?.id, txHashData?.receipts])
+
+  return (
+    <div>
+      <h3>[client] Get Funded to Mint [balance: {balance}]</h3>
+      <form
+        onSubmit={(event) => {
+          event.preventDefault()
+          sendCalls({
+            calls: [
+              {
+                functionName: 'mint',
+                abi: exp1Config.abi,
+                to: exp1Config.address[chainId],
+                args: [address!, Value.fromEther('100')],
+              },
+            ],
+          })
+        }}
+      >
+        <button
+          type="submit"
+          disabled={isPending}
+          style={{ marginBottom: '5px' }}
+        >
+          {isPending ? 'Confirming...' : 'Mint 100 EXP'}
+        </button>
+      </form>
+      <ul style={{ listStyleType: 'none', padding: 0 }}>
+        {Array.from(transactions).map((tx) => (
+          <li key={tx}>
+            <a
+              target="_blank"
+              rel="noopener noreferrer"
+              href={transactionLink(tx)}
+            >
+              {StringFormatter.truncateHexString({
+                length: 12,
+                address: tx,
+              })}
+            </a>
+          </li>
+        ))}
+      </ul>
+      <p>{isConfirming && 'Waiting for confirmation...'}</p>
+      <p>{isConfirmed && 'Transaction confirmed.'}</p>
+      {error && (
+        <div>
+          Error: {(error as Errors.BaseError).shortMessage || error.message}
+        </div>
+      )}
     </div>
   )
 }
@@ -380,12 +482,7 @@ function Mint() {
   const transactionLink = (hash: string) =>
     blockExplorer ? `${blockExplorer}/tx/${hash}` : hash
 
-  const balance = useReadContract({
-    address: exp1Config.address[chainId],
-    abi: exp1Config.abi,
-    functionName: 'balanceOf',
-    args: [address!],
-  })
+  const balance = useBalance()
 
   const [transactions, setTransactions] = React.useState<Set<string>>(new Set())
   React.useEffect(() => {
@@ -397,9 +494,7 @@ function Mint() {
 
   return (
     <div>
-      <h3>
-        [client] Mint EXP [balance: {Value.formatEther(balance.data ?? 0n)}]
-      </h3>
+      <h3>[client] Mint EXP [balance: {balance}]</h3>
       <form
         onSubmit={(event) => {
           event.preventDefault()
@@ -447,25 +542,10 @@ function Mint() {
   )
 }
 
-const schedules = {
-  'once every 10 seconds': '*/10 * * * * *',
-  'once every minute': '* * * * *',
-  'once every hour': '0 * * * *',
-  'once every day': '0 0 * * *',
-  'once every week': '0 0 * * 0',
-} as const
-
-type Schedule = keyof typeof schedules
-
 function DemoScheduler() {
   const chainId = useChainId()
-  const { address, chain } = useAccount()
-  const [error, setError] = React.useState<string | null>(null)
+  const { address } = useAccount()
   const { data: debugData } = useDebug({ address, enabled: !!address })
-
-  const blockExplorer = chain?.blockExplorers?.default?.url
-  const transactionLink = (hash: string) =>
-    blockExplorer ? `${blockExplorer}/tx/${hash}` : hash
 
   const scheduleTransactionMutation = useMutation({
     mutationFn: async ({
@@ -475,7 +555,7 @@ function DemoScheduler() {
     }: {
       count?: number
       action: string
-      schedule: Schedule
+      schedule: string
     }) => {
       if (!address) return
 
@@ -519,6 +599,8 @@ function DemoScheduler() {
     scheduleTransactionMutation.status === 'pending' ||
     startWorkflowMutation.status === 'pending'
 
+  const error = scheduleTransactionMutation.error || startWorkflowMutation.error
+
   return (
     <div>
       <div style={{ display: 'flex', alignItems: 'center' }}>
@@ -551,32 +633,15 @@ function DemoScheduler() {
 
           const action =
             (formData.get('action') as string) ?? 'approve-transfer'
-          const schedule = formData.get('schedule') as Schedule
           const count = Number(formData.get('count') as string) || 6
 
-          const cron = schedules[schedule]
-          if (!cron) return setError('Invalid schedule')
+          const schedule = '*/10 * * * * *'
 
           scheduleTransactionMutation.mutate({ action, schedule, count })
         }}
       >
         <p>Approve & Transfer 1 EXP</p>
-        <select
-          name="schedule"
-          style={{ marginRight: '10px' }}
-          defaultValue="once every 10 seconds"
-        >
-          <option value="once every 10 seconds">once every 10 seconds</option>
-          <option value="once every minute" disabled>
-            once every minute (coming soon)
-          </option>
-          <option value="once every hour" disabled>
-            once every hour (coming soon)
-          </option>
-          <option value="once every day" disabled>
-            once every day (coming soon)
-          </option>
-        </select>
+        <p>once every 10 seconds</p>
         <div
           style={{
             margin: '10px 0',
@@ -590,7 +655,7 @@ function DemoScheduler() {
           </span>
           <input
             min={1}
-            max={10}
+            max={6}
             name="count"
             type="number"
             placeholder="6"
@@ -609,7 +674,9 @@ function DemoScheduler() {
       </form>
       {error && (
         <pre style={{ color: '#F43F5E' }}>
-          {error}
+          {error instanceof Error
+            ? error.message
+            : Json.stringify(error, null, 2)}
           <br />
           Try again in a few seconds
         </pre>
@@ -621,29 +688,40 @@ function DemoScheduler() {
                 <li key={transaction.id} style={{ marginBottom: '8px' }}>
                   <p style={{ margin: 3 }}>
                     🔑 PUBLIC KEY:{' '}
-                    {truncateHexString({
+                    {StringFormatter.truncateHexString({
                       address: transaction.public_key,
                       length: 6,
                     })}{' '}
                     | TYPE: {transaction.role}
                   </p>
                   <span>🔗 TX HASH: </span>
-                  <a
-                    target="_blank"
-                    rel="noreferrer"
-                    href={transactionLink(transaction.hash)}
-                  >
-                    {truncateHexString({
-                      length: 12,
-                      address: transaction.hash,
-                    })}
-                  </a>
+                  <TxHash id={transaction.hash} />
                 </li>
               )
             })
           : null}
       </ul>
     </div>
+  )
+}
+
+function TxHash({ id }: { id: string }) {
+  const { chain } = useAccount()
+  const callStatus = useCallsStatus({ id })
+
+  const hash = callStatus.data?.receipts?.at(0)?.transactionHash
+  console.log('hash', hash)
+  if (!hash) return null
+  const blockExplorer = chain?.blockExplorers?.default?.url
+  const transactionLink = (hash: string) =>
+    blockExplorer ? `${blockExplorer}/tx/${hash}` : hash
+  return (
+    <a target="_blank" rel="noreferrer" href={transactionLink(hash)}>
+      {StringFormatter.truncateHexString({
+        length: 12,
+        address: hash,
+      })}
+    </a>
   )
 }
 

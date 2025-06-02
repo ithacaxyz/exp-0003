@@ -25,20 +25,24 @@
       "recommended": true,
       "complexity": {
         "noBannedTypes": "off",
+        "noStaticOnlyClass": "off",
         "noUselessConstructor": "off"
       },
       "performance": {
         "noDelete": "off"
       },
       "style": {
+        "noVar": "off",
         "useTemplate": "off",
         "noNonNullAssertion": "off",
         "useNamingConvention": "off",
         "noUnusedTemplateLiteral": "off"
       },
       "suspicious": {
-        "noAssignInExpressions": "off",
-        "noExplicitAny": "off"
+        "noExplicitAny": "off",
+        "noEmptyInterface": "off",
+        "noConfusingVoidType": "off",
+        "noAssignInExpressions": "off"
       }
     }
   },

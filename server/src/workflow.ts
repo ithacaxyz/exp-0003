@@ -7,15 +7,8 @@ import { Chains } from 'porto'
 import { Hex, Json, P256, Signature } from 'ox'
 import { NonRetryableError } from 'cloudflare:workflows'
 
-import { getPorto, walletClient } from '#config.ts'
+import { getPorto } from '#config.ts'
 import type { Env, KeyPair, Schedule } from '#types.ts'
-
-class TransactionInsertedFakeError extends Error {
-  override readonly name = 'TransactionInsertedFakeError'
-  constructor(message: string) {
-    super(`[SUCCESS]: Transaction inserted\n${message}`)
-  }
-}
 
 export type Params = {
   count: number
@@ -48,20 +41,22 @@ export class Exp3Workflow extends WorkflowEntrypoint<Env, Params> {
       },
     )
 
-    try {
-      await step.do(
-        'STEP_02: process transaction',
-        {
-          // accounting for processing time
-          timeout: 1_000 * 60 * 5, // 5 minutes
-          retries: {
-            backoff: 'constant',
-            delay: '10 seconds',
-            limit: Math.min(event.payload.count - 1, 6),
+    let transactionsProcessed = 0
+    const targetCount = event.payload.count
+
+    while (transactionsProcessed < targetCount) {
+      try {
+        const result = await step.do(
+          `STEP_02: process transaction ${transactionsProcessed + 1}`,
+          {
+            timeout: 1_000 * 60 * 5, // 5 minutes
+            retries: {
+              backoff: 'constant',
+              delay: '10 seconds',
+              limit: 3,
+            },
           },
-        },
-        async () => {
-          try {
+          async () => {
             const { keyPair } = event.payload
             const { calls, address } = scheduleResult
 
@@ -108,71 +103,54 @@ export class Exp3Workflow extends WorkflowEntrypoint<Env, Params> {
               console.error(
                 `failed to send prepared calls for ${address}. No bundleId returned from wallet_sendPreparedCalls`,
               )
-              throw new NonRetryableError('failed to send prepared calls')
+              throw new Error('failed to send prepared calls')
             }
-
-            const callStatus = await walletClient.getCallsStatus({
-              id: bundleId,
-            })
-            const hash = callStatus?.receipts?.at(0)?.transactionHash
 
             const insertQuery = await this.env.DB.prepare(
               /* sql */ `INSERT INTO transactions (address, hash, role, public_key) VALUES (?, ?, ?, ?)`,
             )
-              .bind(address, hash, keyPair.role, keyPair.public_key)
+              .bind(address, bundleId, keyPair.role, keyPair.public_key)
               .run()
 
             if (!insertQuery.success) {
-              throw new NonRetryableError('failed to insert transaction')
+              throw new Error('failed to insert transaction')
             }
 
-            console.info(`transaction inserted: ${hash}`)
-
-            // we will continue throwing an 'error' so that the workflow can be retried
-            throw new TransactionInsertedFakeError('transaction inserted')
-          } catch (error) {
-            if (error instanceof TransactionInsertedFakeError) throw error
-            if (error instanceof Error) {
-              console.warn(
-                'STEP_02: error',
-                error instanceof TransactionInsertedFakeError,
-              )
-
-              console.error(
-                Json.stringify(
-                  {
-                    name: error.name,
-                    cause: error.cause,
-                    stack: error.stack,
-                    errorMessage: error.message,
-                  },
-                  undefined,
-                  2,
-                ),
-              )
+            console.info(`transaction inserted: ${bundleId}`)
+            return {
+              success: true,
+              hash: bundleId,
+              transactionNumber: transactionsProcessed + 1,
             }
-          }
-        },
-      )
-    } catch (error) {
-      if (error instanceof TransactionInsertedFakeError)
-        console.info('transaction processing completed')
-      else {
-        if (error instanceof Error) {
-          console.warn('STEP_03: error')
-          console.error(
-            Json.stringify(
-              {
-                name: error.name,
-                cause: error.cause,
-                stack: error.stack,
-                errorMessage: error.message,
-              },
-              undefined,
-              2,
-            ),
+          },
+        )
+
+        if (result.success) {
+          transactionsProcessed++
+          console.info(
+            `Transaction ${transactionsProcessed}/${targetCount} completed: ${result.hash}`,
           )
-        } else console.error('rip', error)
+        }
+      } catch (error) {
+        console.error(
+          `Error processing transaction ${transactionsProcessed + 1}:`,
+          error,
+        )
+
+        if (error instanceof NonRetryableError) {
+          throw error
+        }
+
+        // For retryable errors, the step.do will handle retries automatically
+        // If we reach here after all retries are exhausted, we should fail
+        throw new NonRetryableError(
+          `Failed to process transaction after retries: ${error instanceof Error ? error.message : 'unknown error'}`,
+        )
+      }
+
+      // Add 10 second delay between transactions as per schedule
+      if (transactionsProcessed < targetCount) {
+        await step.sleep('delay between transactions', '10 seconds')
       }
     }
 
@@ -183,6 +161,13 @@ export class Exp3Workflow extends WorkflowEntrypoint<Env, Params> {
       ).bind(event.payload.keyPair.address)
 
       await this.env.DB.batch([deleteScheduleStatement])
+      console.info(
+        `Cleanup completed for address: ${event.payload.keyPair.address}`,
+      )
     })
+
+    console.info(
+      `Workflow completed successfully. Processed ${transactionsProcessed}/${targetCount} transactions.`,
+    )
   }
 }

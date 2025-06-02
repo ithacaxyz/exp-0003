@@ -17,7 +17,7 @@ export function useBalance() {
     query: { enabled: !!address, refetchInterval: 2_000 },
   })
 
-  return `${Value.formatEther(balance ?? 0n)} EXP`
+  return `${Number(Value.format(balance ?? 0n, 18)).toFixed(2)} EXP`
 }
 
 export interface DebugData {

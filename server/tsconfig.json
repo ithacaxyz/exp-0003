@@ -43,7 +43,8 @@
   "files": [
     "env.d.ts",
     "wrangler.json",
-    "package.json"
+    "package.json",
+    "worker-configuration.d.ts"
   ],
   "exclude": [
     "dist",

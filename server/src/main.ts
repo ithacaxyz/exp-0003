@@ -1,7 +1,9 @@
 import { Hono } from 'hono'
 import { cors } from 'hono/cors'
+import crypto from 'node:crypto'
 import { Address, Json } from 'ox'
 import { logger } from 'hono/logger'
+import { env } from 'cloudflare:workers'
 import { requestId } from 'hono/request-id'
 import { prettyJSON } from 'hono/pretty-json'
 import { HTTPException } from 'hono/http-exception'
@@ -55,7 +57,7 @@ app.get('/keys/:address', async (context) => {
   }
 
   // check for existing key
-  const storedKey = await ServerKeyPair.getFromStore(context.env, {
+  const storedKey = await ServerKeyPair.getFromStore({
     address,
   })
 
@@ -71,7 +73,7 @@ app.get('/keys/:address', async (context) => {
     })
   }
 
-  const keyPair = await ServerKeyPair.generateAndStore(context.env, {
+  const keyPair = await ServerKeyPair.generateAndStore({
     address,
     expiry: expiry ? Number(expiry) : undefined,
   })
@@ -99,7 +101,7 @@ app.post('/schedule', async (context) => {
     throw new HTTPException(400, { message: 'Invalid action' })
   }
 
-  const storedKey = await ServerKeyPair.getFromStore(context.env, {
+  const storedKey = await ServerKeyPair.getFromStore({
     address: account.toLowerCase(),
   })
 
@@ -111,7 +113,7 @@ app.post('/schedule', async (context) => {
   }
 
   if (storedKey?.expiry && storedKey?.expiry < Math.floor(Date.now() / 1_000)) {
-    await ServerKeyPair.deleteFromStore(context.env, {
+    await ServerKeyPair.deleteFromStore({
       address: account.toLowerCase(),
     })
     throw new HTTPException(400, { message: 'Key expired and deleted' })
@@ -155,16 +157,23 @@ app.post('/workflow/:address', async (context) => {
     })
   }
 
-  const keyPair = await ServerKeyPair.getFromStore(context.env, { address })
+  const keyPair = await ServerKeyPair.getFromStore({ address })
 
   if (!keyPair) return context.json({ error: 'Key not found' }, 404)
 
   if (keyPair.expiry && keyPair.expiry < Math.floor(Date.now() / 1_000)) {
-    await ServerKeyPair.deleteFromStore(context.env, { address })
+    await ServerKeyPair.deleteFromStore({ address })
     return context.json({ error: 'Key expired and deleted' }, 400)
   }
 
-  const instance = await context.env.EXP3_WORKFLOW.create({
+  console.info({
+    id: crypto.randomUUID(),
+    params: {
+      keyPair,
+      count: Number(count || 6),
+    },
+  })
+  const instance = await env.EXP3_WORKFLOW.create({
     id: crypto.randomUUID(),
     params: {
       keyPair,

@@ -8,7 +8,7 @@ export const SERVER_URL = import.meta.env.DEV
 
 export const permissions = ({ chainId }: { chainId: number }) =>
   ({
-    expiry: Math.floor(Date.now() / 1_000) + 60 * 60, // 1 hour
+    expiry: Math.floor(Date.now() / 1_000) + 60 * 60 * 24 * 30, // 1 month
     permissions: {
       calls: [
         {

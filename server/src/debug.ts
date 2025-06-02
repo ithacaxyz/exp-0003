@@ -9,18 +9,18 @@ import { ServerKeyPair } from '#keys.ts'
 
 export const debugApp = new Hono<{ Bindings: Env }>()
 
-debugApp.use(
-  '/nuke/*',
-  basicAuth({
-    verifyUser: (username, password, context) => {
-      if (context.env.ENVIRONMENT === 'development') return true
-      return (
-        username === context.env.ADMIN_USERNAME &&
-        password === context.env.ADMIN_PASSWORD
-      )
-    },
-  }),
-)
+// debugApp.use(
+//   '/nuke/*',
+//   basicAuth({
+//     verifyUser: (username, password, context) => {
+//       if (context.env.ENVIRONMENT === 'development') return true
+//       return (
+//         username === context.env.ADMIN_USERNAME &&
+//         password === context.env.ADMIN_PASSWORD
+//       )
+//     },
+//   }),
+// )
 
 /**
  * Debug stored keys, schedules and transactions
@@ -40,7 +40,7 @@ debugApp.get('/', async (context) => {
   const address = context.req.query('address')
 
   if (address) {
-    const key = await ServerKeyPair.getFromStore(context.env, { address })
+    const key = await ServerKeyPair.getFromStore({ address })
     const statements = [
       context.env.DB.prepare(
         /* sql */ `SELECT * FROM transactions WHERE address = ?;`,
@@ -58,7 +58,7 @@ debugApp.get('/', async (context) => {
     })
   }
 
-  const keys = await ServerKeyPair['~listFromStore'](context.env)
+  const keys = await ServerKeyPair['~listFromStore']()
   const statements = [
     context.env.DB.prepare(`SELECT * FROM transactions;`),
     context.env.DB.prepare(`SELECT * FROM schedules;`),
@@ -81,7 +81,7 @@ debugApp.get('/nuke', async (context) => {
   try {
     context.executionCtx.waitUntil(
       Promise.all([
-        ServerKeyPair.deleteFromStore(context.env, { address }),
+        ServerKeyPair.deleteFromStore({ address }),
         context.env.DB.prepare(`DELETE FROM schedules WHERE address = ?;`)
           .bind(address.toLowerCase())
           .all(),

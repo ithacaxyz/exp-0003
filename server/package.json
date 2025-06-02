@@ -19,14 +19,14 @@
     "typecheck": "tsc --noEmit --project tsconfig.json"
   },
   "dependencies": {
-    "@hono/cloudflare-access": "0.3.0",
+    "@hono/cloudflare-access": "^0.3.0",
     "hono": "^4.7.8",
     "ox": "catalog:",
     "porto": "catalog:",
     "viem": "^2.28.3"
   },
   "devDependencies": {
-    "@cloudflare/workers-types": "^4.20250503.0",
+    "@cloudflare/workers-types": "^4.20250601.0",
     "@types/node": "catalog:",
     "typescript": "catalog:",
     "wrangler": "catalog:"

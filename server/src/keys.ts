@@ -1,18 +1,20 @@
 import { P256, PublicKey } from 'ox'
+import { env } from 'cloudflare:workers'
 
 import type { KeyPair, Env } from '#types.ts'
 
 type GeneratedKeyPair = Omit<KeyPair, 'private_key' | 'id' | 'created_at'>
 
 export const ServerKeyPair = {
-  generateAndStore: async (
-    env: Env,
-    {
-      address,
-      role = 'session',
-      expiry = Math.floor(Date.now() / 1_000) + 60 * 2, // 2 minutes by default
-    }: { address: string; expiry?: number; role?: 'session' | 'admin' },
-  ): Promise<GeneratedKeyPair> => {
+  generateAndStore: async ({
+    address,
+    role = 'session',
+    expiry = Math.floor(Date.now() / 1_000) + 60 * 2, // 2 minutes by default
+  }: {
+    address: string
+    expiry?: number
+    role?: 'session' | 'admin'
+  }): Promise<GeneratedKeyPair> => {
     const privateKey = P256.randomPrivateKey()
     const publicKey = PublicKey.toHex(P256.getPublicKey({ privateKey }), {
       includePrefix: false,
@@ -53,7 +55,7 @@ export const ServerKeyPair = {
       type: 'p256',
     } as const
   },
-  getFromStore: async (env: Env, { address }: { address: string }) => {
+  getFromStore: async ({ address }: { address: string }) => {
     const queryResult = await env.DB.prepare(
       /* sql */ `SELECT * FROM keypairs WHERE address = ?;`,
     )
@@ -66,7 +68,7 @@ export const ServerKeyPair = {
     return undefined
   },
 
-  deleteFromStore: async (env: Env, { address }: { address: string }) => {
+  deleteFromStore: async ({ address }: { address: string }) => {
     const deleteKeypair = env.DB.prepare(
       /* sql */
       `DELETE FROM keypairs WHERE address = ?;`,
@@ -83,10 +85,10 @@ export const ServerKeyPair = {
     ])
   },
 
-  deleteAllFromStore: async (env: Env) =>
+  deleteAllFromStore: async () =>
     await env.DB.prepare(/* sql */ `DELETE FROM keypairs;`).run(),
 
-  '~listFromStore': async (env: Env) => {
+  '~listFromStore': async () => {
     const queryResult = await env.DB.prepare(
       /* sql */ `SELECT * FROM keypairs;`,
     ).all<KeyPair>()
