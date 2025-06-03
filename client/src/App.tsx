@@ -710,8 +710,8 @@ function TxHash({ id }: { id: string }) {
   const callStatus = useCallsStatus({ id })
 
   const hash = callStatus.data?.receipts?.at(0)?.transactionHash
-  console.log('hash', hash)
-  if (!hash) return null
+  if (!hash || callStatus.status === 'pending') return <span>pending...</span>
+
   const blockExplorer = chain?.blockExplorers?.default?.url
   const transactionLink = (hash: string) =>
     blockExplorer ? `${blockExplorer}/tx/${hash}` : hash
