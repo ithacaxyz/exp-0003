@@ -9,6 +9,7 @@ import { NonRetryableError } from 'cloudflare:workflows'
 
 import { getPorto } from '#config.ts'
 import type { Env, KeyPair, Schedule } from '#types.ts'
+import { exp1Config } from '#contracts.ts'
 
 export type Params = {
   count: number
@@ -62,7 +63,7 @@ export class Exp3Workflow extends WorkflowEntrypoint<Env, Params> {
 
             const porto = getPorto()
 
-            const { digest, ...request } = await porto.provider.request({
+            const prepareResult = await porto.provider.request({
               method: 'wallet_prepareCalls',
               params: [
                 {
@@ -77,6 +78,8 @@ export class Exp3Workflow extends WorkflowEntrypoint<Env, Params> {
               ],
             })
 
+            const { digest, ...request } = prepareResult
+
             const signature = Signature.toHex(
               P256.sign({
                 payload: digest,
@@ -84,7 +87,7 @@ export class Exp3Workflow extends WorkflowEntrypoint<Env, Params> {
               }),
             )
 
-            const [sendPreparedCallsResult] = await porto.provider.request({
+            const sendResult = await porto.provider.request({
               method: 'wallet_sendPreparedCalls',
               params: [
                 {
@@ -97,6 +100,24 @@ export class Exp3Workflow extends WorkflowEntrypoint<Env, Params> {
                 },
               ],
             })
+
+            const [sendPreparedCallsResult] = sendResult
+
+            // Dispose any RPC stubs if they exist
+            if (
+              prepareResult &&
+              typeof prepareResult === 'object' &&
+              Symbol.dispose in prepareResult
+            ) {
+              ;(prepareResult as any)[Symbol.dispose]()
+            }
+            if (
+              sendResult &&
+              typeof sendResult === 'object' &&
+              Symbol.dispose in sendResult
+            ) {
+              ;(sendResult as any)[Symbol.dispose]()
+            }
 
             const bundleId = sendPreparedCallsResult?.id
             if (!bundleId) {

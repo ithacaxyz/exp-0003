@@ -45,12 +45,9 @@
 
 ### Prerequisites
 
-```shell
-# install / update pnpm
-npm install --global pnpm@latest
-# install dependencies 
-pnpm install
-```
+- [Node.js (LTS)](https://nodejs.org/en)
+- enable [`corepack`](https://github.com/nodejs/corepack) using `corepack enable`
+- install dependencies using `pnpm install`
 
 Setup environment variables
 

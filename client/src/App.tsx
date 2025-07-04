@@ -1,6 +1,4 @@
 import {
-  useChainId,
-  useConnect,
   useAccount,
   useSendCalls,
   useDisconnect,
@@ -10,6 +8,8 @@ import {
 import * as React from 'react'
 import { Hooks } from 'porto/wagmi'
 import { useMutation } from '@tanstack/react-query'
+import { useConnect } from 'porto/wagmi/Hooks'
+
 import { type Errors, type Hex, Json, Value } from 'ox'
 
 import {
@@ -130,25 +130,23 @@ function DebugLink() {
 }
 
 function Connect() {
-  const chainId = useChainId()
-  const label = `_exp-0003-${Math.floor(Date.now() / 1_000)}`
   const [grantPermissions, setGrantPermissions] = React.useState<boolean>(true)
 
   const { address } = useAccount()
 
   const connect = useConnect()
   const disconnect = useDisconnect()
-
-  const [connector] = connect.connectors
+  const connectors = useConnectors()
+  const [connector] = connectors
 
   const allPermissions_ = Hooks.usePermissions()
   const latestPermissions = allPermissions_.data?.at(-1)
 
   const disconnectFromAll = async () => {
-    await Promise.all(
-      connect.connectors.map((c) => c.disconnect().catch(() => {})),
-    )
-    await disconnect.disconnectAsync({ connector })
+    // await Promise.all(
+    //   connect.contextconnectors.map((c) => c.disconnect().catch(() => {})),
+    // )
+    await disconnect.disconnectAsync()
   }
 
   const balance = useBalance()
@@ -175,61 +173,46 @@ function Connect() {
         Grant Permissions
       </p>
 
-      {connector && (
-        <div key={connector?.uid} style={{ display: 'flex', gap: '10px' }}>
-          <button
-            key={connector?.uid}
-            disabled={connect.status === 'pending'}
-            onClick={async () =>
-              disconnectFromAll().then(() =>
-                connect.connect({
-                  connector,
-                  capabilities: {
-                    createAccount: false,
-                    grantPermissions: grantPermissions
-                      ? permissions({ chainId })
-                      : undefined,
-                  },
-                }),
-              )
-            }
-            type="button"
-          >
-            Login
-          </button>
-          <button
-            disabled={connect.status === 'pending'}
-            onClick={async () =>
-              disconnectFromAll().then(() => {
-                nukeEverything()
-                connect.connect({
-                  connector,
-                  capabilities: {
-                    createAccount: { label },
-                    grantPermissions: grantPermissions
-                      ? permissions({ chainId })
-                      : undefined,
-                  },
-                })
-              })
-            }
-            type="button"
-          >
-            Register
-          </button>
-          <button
-            type="button"
-            onClick={disconnectFromAll}
-            disabled={
-              connect.status === 'pending' ||
-              disconnect.status === 'pending' ||
-              !address
-            }
-          >
-            Disconnect
-          </button>
-        </div>
-      )}
+      <div style={{ display: 'flex', gap: '10px' }}>
+        <button
+          disabled={connect.status === 'pending'}
+          onClick={async () =>
+            connect.mutate({
+              connector,
+              createAccount: false,
+              grantPermissions: permissions(),
+            })
+          }
+          type="button"
+        >
+          Login
+        </button>
+        <button
+          disabled={connect.status === 'pending'}
+          onClick={async () =>
+            connect.mutate({
+              connector,
+              createAccount: { label: `replace-me@with-your.email` },
+              grantPermissions: grantPermissions ? permissions() : undefined,
+            })
+          }
+          type="button"
+        >
+          Register
+        </button>
+        <button
+          type="button"
+          onClick={disconnectFromAll}
+          disabled={
+            connect.status === 'pending' ||
+            disconnect.status === 'pending' ||
+            !address
+          }
+        >
+          Disconnect
+        </button>
+      </div>
+
       <p>{connect.error?.message}</p>
       {address && <p>Account: {address}</p>}
 
@@ -262,7 +245,6 @@ interface Key {
 }
 
 function RequestKey() {
-  const chainId = useChainId()
   const { address } = useAccount()
 
   // const { refetch } = useDebug({ enabled: !!address, address })
@@ -271,11 +253,11 @@ function RequestKey() {
     mutationFn: async () => {
       if (!address) return
       const searchParams = new URLSearchParams({
-        expiry: permissions({ chainId }).expiry.toString(),
+        expiry: permissions().expiry.toString(),
       })
-      const response = await fetch(
-        `${SERVER_URL}/keys/${address.toLowerCase()}?${searchParams.toString()}`,
-      )
+      const url = `${SERVER_URL}/keys/${address.toLowerCase()}?${searchParams.toString()}`
+      console.info(url)
+      const response = await fetch(url)
       const result = await Json.parse(await response.text())
       await wagmiConfig.storage?.setItem(
         `${address.toLowerCase()}-keys`,
@@ -316,7 +298,6 @@ function RequestKey() {
 }
 
 function GrantPermissions() {
-  const chainId = useChainId()
   const { address } = useAccount()
   const grantPermissions = Hooks.useGrantPermissions()
   return (
@@ -334,13 +315,13 @@ function GrantPermissions() {
           ) as Key
 
           // if `expry` is present in both `key` and `permissions`, pick the lower value
-          const expiry = Math.min(key.expiry, permissions({ chainId }).expiry)
+          const expiry = Math.min(key.expiry, permissions().expiry)
 
           grantPermissions.mutate({
             key,
             expiry,
             address,
-            permissions: permissions({ chainId }).permissions,
+            permissions: permissions().permissions,
           })
         }}
       >
@@ -374,7 +355,6 @@ function GrantPermissions() {
 }
 
 function Fund() {
-  const chainId = useChainId()
   const { address, chain } = useAccount()
   const { data, error, isPending, sendCalls } = useSendCalls()
   const {
@@ -417,7 +397,7 @@ function Fund() {
               {
                 functionName: 'mint',
                 abi: exp1Config.abi,
-                to: exp1Config.address[chainId],
+                to: exp1Config.address,
                 args: [address!, Value.fromEther('100')],
               },
             ],
@@ -460,7 +440,6 @@ function Fund() {
 }
 
 function Mint() {
-  const chainId = useChainId()
   const { address, chain } = useAccount()
   const { data, error, isPending, sendCalls } = useSendCalls()
   const {
@@ -503,7 +482,7 @@ function Mint() {
               {
                 functionName: 'mint',
                 abi: exp1Config.abi,
-                to: exp1Config.address[chainId],
+                to: exp1Config.address,
                 args: [address!, Value.fromEther('100')],
               },
             ],
@@ -543,7 +522,6 @@ function Mint() {
 }
 
 function DemoScheduler() {
-  const chainId = useChainId()
   const { address } = useAccount()
   const { data: debugData } = useDebug({ address, enabled: !!address })
 
@@ -559,7 +537,7 @@ function DemoScheduler() {
     }) => {
       if (!address) return
 
-      const { expiry } = permissions({ chainId })
+      const { expiry } = permissions()
 
       if (expiry < Math.floor(Date.now() / 1_000)) {
         throw new Error('Key expired')
@@ -707,7 +685,17 @@ function DemoScheduler() {
 
 function TxHash({ id }: { id: string }) {
   const { chain } = useAccount()
-  const callStatus = useCallsStatus({ id })
+  const callStatus = useCallsStatus({
+    id,
+    scopeKey: `tx-${id}`,
+    query: {
+      enabled: !!id,
+      refetchInterval: ({ state }) => {
+        if (state.data?.status === 'success') return false
+        return 1_000
+      },
+    },
+  })
 
   const hash = callStatus.data?.receipts?.at(0)?.transactionHash
   if (!hash || callStatus.status === 'pending') return <span>pending...</span>

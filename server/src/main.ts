@@ -18,7 +18,7 @@ import { actions, buildActionCall } from '#calls.ts'
 
 const app = new Hono<{ Bindings: Env }>()
 
-app.use(logger())
+// app.use(logger())
 app.use(prettyJSON({ space: 2 })) // append `?pretty` to any request to get prettified JSON
 app.use('*', requestId({ headerName: `${wranglerJSON.name}-Request-Id` }))
 app.use(
@@ -78,8 +78,8 @@ app.get('/keys/:address', async (context) => {
     expiry: expiry ? Number(expiry) : undefined,
   })
 
-  const { public_key, role, type } = keyPair
-  return context.json({ type, publicKey: public_key, expiry, role })
+  const { public_key, role, type, expiry: keyExpiry } = keyPair
+  return context.json({ type, publicKey: public_key, expiry: keyExpiry, role })
 })
 
 /**
@@ -87,7 +87,7 @@ app.get('/keys/:address', async (context) => {
  * The transaction are sent by the key owner
  */
 app.post('/schedule', async (context) => {
-  const account = context.req.query('address')
+  const account = context.req.query('address')?.toLowerCase()
   if (!account || !Address.validate(account)) {
     throw new HTTPException(400, { message: 'Invalid address' })
   }
@@ -102,7 +102,7 @@ app.post('/schedule', async (context) => {
   }
 
   const storedKey = await ServerKeyPair.getFromStore({
-    address: account.toLowerCase(),
+    address: account,
   })
 
   if (!storedKey) {
@@ -125,7 +125,7 @@ app.post('/schedule', async (context) => {
     /* sql */ `
     INSERT INTO schedules ( address, schedule, action, calls ) VALUES ( ?, ?, ?, ? )`,
   )
-    .bind(account.toLowerCase(), schedule, action, Json.stringify(calls))
+    .bind(account, schedule, action, Json.stringify(calls))
     .all()
 
   if (!insertSchedule.success) {
@@ -166,13 +166,6 @@ app.post('/workflow/:address', async (context) => {
     return context.json({ error: 'Key expired and deleted' }, 400)
   }
 
-  console.info({
-    id: crypto.randomUUID(),
-    params: {
-      keyPair,
-      count: Number(count || 6),
-    },
-  })
   const instance = await env.EXP3_WORKFLOW.create({
     id: crypto.randomUUID(),
     params: {

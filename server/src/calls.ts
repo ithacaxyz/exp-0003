@@ -14,7 +14,7 @@ export function buildActionCall({
   if (action === 'mint') {
     return <const>[
       {
-        to: exp1Config.address[84532],
+        to: exp1Config.address,
         data: AbiFunction.encodeData(
           AbiFunction.fromAbi(exp1Config.abi, 'mint'),
           [account, Value.fromEther('1')],
@@ -26,14 +26,14 @@ export function buildActionCall({
   if (action === 'approve-transfer') {
     return <const>[
       {
-        to: exp1Config.address[84532],
+        to: exp1Config.address,
         data: AbiFunction.encodeData(
           AbiFunction.fromAbi(exp1Config.abi, 'approve'),
           [account, Value.fromEther('1')],
         ),
       },
       {
-        to: exp1Config.address[84532],
+        to: exp1Config.address,
         data: AbiFunction.encodeData(
           AbiFunction.fromAbi(exp1Config.abi, 'transfer'),
           ['0x0000000000000000000000000000000000000000', Value.fromEther('1')],

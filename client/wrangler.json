@@ -4,7 +4,7 @@
   "keep_vars": true,
   "workers_dev": true,
   "name": "exp-0003-client",
-  "compatibility_date": "2025-05-27",
+  "compatibility_date": "2025-06-27",
   "compatibility_flags": [
     "nodejs_als",
     "nodejs_compat"

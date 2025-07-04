@@ -2,7 +2,7 @@
   "recommendations": [
     "biomejs.biome",
     "tobermory.es6-string-html",
-    "yzhang.markdown-all-in-one"
+    "DavidAnson.vscode-markdownlint"
   ],
   "unwantedRecommendations": [
     "esbenp.prettier-vscode",

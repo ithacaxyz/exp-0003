@@ -1,4 +1,4 @@
-import { Porto } from 'porto'
+import { Dialog, Mode, Porto } from 'porto'
 import { baseSepolia } from 'porto/Chains'
 import { porto as portoConnector } from 'porto/wagmi'
 import { http, createConfig, createStorage } from 'wagmi'
@@ -8,13 +8,21 @@ export const porto = Porto.create()
 
 export const wagmiConfig = createConfig({
   chains: [baseSepolia],
-  connectors: [portoConnector()],
+  connectors: [
+    portoConnector({ mode: Mode.dialog({ renderer: Dialog.popup() }) }),
+  ],
   multiInjectedProviderDiscovery: false,
   storage: createStorage({ storage: window.localStorage }),
   transports: {
     [baseSepolia.id]: http(),
   },
 })
+
+declare module 'wagmi' {
+  interface Register {
+    config: typeof wagmiConfig
+  }
+}
 
 export const queryClient: QueryClient = new QueryClient({
   defaultOptions: {
@@ -43,9 +51,3 @@ export const queryClient: QueryClient = new QueryClient({
     },
   }),
 })
-
-declare module 'wagmi' {
-  interface Register {
-    config: typeof wagmiConfig
-  }
-}
