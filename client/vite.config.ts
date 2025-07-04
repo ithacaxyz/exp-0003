@@ -6,9 +6,5 @@ export default defineConfig((config) => {
   console.info(env.ALLOWED_HOSTS.split(','))
   return {
     plugins: [react()],
-    server: {
-      // cors: false, //{ origin: '*' },
-      allowedHosts: true,
-    },
   }
 })
