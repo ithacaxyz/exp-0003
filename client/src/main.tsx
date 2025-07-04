@@ -12,6 +12,7 @@ if (!root) throw new Error('Root not found')
 
 createRoot(root).render(
   <StrictMode>
+    <meta name="x-app-version" content={__APP_VERSION__} />
     <WagmiProvider config={wagmiConfig}>
       <QueryClientProvider client={queryClient}>
         <App />

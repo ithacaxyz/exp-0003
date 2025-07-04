@@ -247,8 +247,6 @@ interface Key {
 function RequestKey() {
   const { address } = useAccount()
 
-  // const { refetch } = useDebug({ enabled: !!address, address })
-
   const requestKeyMutation = useMutation<Key>({
     mutationFn: async () => {
       if (!address) return

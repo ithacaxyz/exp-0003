@@ -34,10 +34,7 @@
   "[html]": {
     "editor.defaultFormatter": "biomejs.biome"
   },
-  "files.exclude": {
-    "**/dist": true
-    // "**/node_modules": true
-  },
+  "files.exclude": {},
   "files.associations": {
     ".env.*": "dotenv",
     ".dev.vars": "dotenv",
