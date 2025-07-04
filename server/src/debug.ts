@@ -1,6 +1,5 @@
 import { Hono } from 'hono'
 import { showRoutes } from 'hono/dev'
-import { basicAuth } from 'hono/basic-auth'
 import { HTTPException } from 'hono/http-exception'
 import { getConnInfo } from 'hono/cloudflare-workers'
 
@@ -8,19 +7,6 @@ import type { Env } from '#types.ts'
 import { ServerKeyPair } from '#keys.ts'
 
 export const debugApp = new Hono<{ Bindings: Env }>()
-
-// debugApp.use(
-//   '/nuke/*',
-//   basicAuth({
-//     verifyUser: (username, password, context) => {
-//       if (context.env.ENVIRONMENT === 'development') return true
-//       return (
-//         username === context.env.ADMIN_USERNAME &&
-//         password === context.env.ADMIN_PASSWORD
-//       )
-//     },
-//   }),
-// )
 
 /**
  * Debug stored keys, schedules and transactions

@@ -1,7 +1,7 @@
 import { P256, PublicKey } from 'ox'
 import { env } from 'cloudflare:workers'
 
-import type { KeyPair, Env } from '#types.ts'
+import type { KeyPair } from '#types.ts'
 
 type GeneratedKeyPair = Omit<KeyPair, 'private_key' | 'id' | 'created_at'>
 

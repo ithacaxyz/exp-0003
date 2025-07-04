@@ -18,7 +18,7 @@ import { actions, buildActionCall } from '#calls.ts'
 
 const app = new Hono<{ Bindings: Env }>()
 
-// app.use(logger())
+app.use(logger())
 app.use(prettyJSON({ space: 2 })) // append `?pretty` to any request to get prettified JSON
 app.use('*', requestId({ headerName: `${wranglerJSON.name}-Request-Id` }))
 app.use(
@@ -183,4 +183,4 @@ app.route('/debug', debugApp)
 
 export { Exp3Workflow }
 
-export default app satisfies ExportedHandler<Env>
+export default app satisfies ExportedHandler<Cloudflare.Env>

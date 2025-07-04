@@ -1,19 +1,39 @@
 {
-  "$schema": "https://biomejs.dev/schemas/1.9.4/schema.json",
+  "$schema": "https://biomejs.dev/schemas/2.0.6/schema.json",
   "vcs": {
     "enabled": true,
     "clientKind": "git",
     "useIgnoreFile": true
   },
   "files": {
-    "ignore": [
-      "_"
+    "includes": [
+      "**",
+      "!**/_/**",
+      "!**/.wrangler/**",
+      "!**/node_modules/**"
     ],
     "ignoreUnknown": true
   },
-  "organizeImports": {
-    "enabled": false
+  "assist": {
+    "actions": {
+      "source": {
+        "organizeImports": "off"
+      }
+    }
   },
+  "html": {
+    "formatter": {
+      "enabled": true,
+      "lineWidth": 100,
+      "indentWidth": 2,
+      "indentStyle": "space",
+      "bracketSameLine": true,
+      "attributePosition": "auto",
+      "indentScriptAndStyle": true,
+      "selfCloseVoidElements": "never"
+    }
+  },
+  "root": true,
   "formatter": {
     "enabled": true,
     "indentWidth": 2,
@@ -32,7 +52,6 @@
         "noDelete": "off"
       },
       "style": {
-        "noVar": "off",
         "useTemplate": "off",
         "noNonNullAssertion": "off",
         "useNamingConvention": "off",
@@ -66,12 +85,34 @@
       "semicolons": "asNeeded"
     }
   },
+  "css": {
+    "linter": {
+      "enabled": true
+    },
+    "formatter": {
+      "enabled": true
+    }
+  },
   "overrides": [
     {
-      "include": [
-        "tsconfig.json",
-        "tsconfig.*.json"
+      "includes": [
+        "**/*.json",
+        "**/*.jsonc"
       ],
+      "formatter": {
+        "lineWidth": 1
+      },
+      "json": {
+        "formatter": {
+          "lineWidth": 1
+        },
+        "parser": {
+          "allowComments": true,
+          "allowTrailingCommas": true
+        }
+      }
+    },
+    {
       "json": {
         "parser": {
           "allowComments": true,

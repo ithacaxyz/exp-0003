@@ -8,16 +8,15 @@ import { Hex, Json, P256, Signature } from 'ox'
 import { NonRetryableError } from 'cloudflare:workflows'
 
 import { getPorto } from '#config.ts'
-import type { Env, KeyPair, Schedule } from '#types.ts'
-import { exp1Config } from '#contracts.ts'
+import type { KeyPair, Schedule } from '#types.ts'
 
 export type Params = {
   count: number
   keyPair: KeyPair
 }
 
-export class Exp3Workflow extends WorkflowEntrypoint<Env, Params> {
-  constructor(ctx: ExecutionContext, env: Env) {
+export class Exp3Workflow extends WorkflowEntrypoint<Cloudflare.Env, Params> {
+  constructor(ctx: ExecutionContext, env: Cloudflare.Env) {
     super(ctx, env)
   }
 
