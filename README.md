@@ -70,7 +70,7 @@ pnpm --filter='server' db:bootstrap:remote
 > [!NOTE]
 > if you want https setup for local development:
 >
-> - install [caddy](https://caddyserver.com/docs/install),
+> - install [caddy](https://caddyserver.com/docs/install) `brew install caddy`,
 > - run `caddy run --config=Caddyfile`
 > - set `VITE_SERVER_URL` to `https://server.localhost` in `client/.env`
 
