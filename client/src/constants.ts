@@ -5,7 +5,7 @@ import { exp1Config } from '#contracts.ts'
 export const SERVER_URL =
   import.meta.env.VITE_SERVER_URL ??
   (import.meta.env.DEV
-    ? 'http://localhost:6900'
+    ? 'http://localhost:6901'
     : 'https://exp-0003-server.evm.workers.dev')
 export const permissions = () =>
   ({

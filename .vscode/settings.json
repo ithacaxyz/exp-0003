@@ -47,5 +47,8 @@
     "**/dist": true,
     "pnpm-lock.yaml": true,
     "**/node_modules": true
+  },
+  "[caddyfile]": {
+    "editor.defaultFormatter": "matthewpi.caddyfile-support"
   }
 }

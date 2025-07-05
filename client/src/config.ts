@@ -1,7 +1,7 @@
-import { Dialog, Mode, Porto } from 'porto'
+import { http, createConfig } from 'wagmi'
 import { baseSepolia } from 'porto/Chains'
+import { Dialog, Mode, Porto } from 'porto'
 import { porto as portoConnector } from 'porto/wagmi'
-import { http, createConfig, createStorage } from 'wagmi'
 import { MutationCache, QueryCache, QueryClient } from '@tanstack/react-query'
 
 export const porto = Porto.create()
@@ -15,12 +15,10 @@ export const wagmiConfig = createConfig({
   chains: [baseSepolia],
   connectors: [
     portoConnector({
-      announceProvider: false,
       mode: Mode.dialog({ renderer }),
     }),
   ],
   multiInjectedProviderDiscovery: false,
-  storage: createStorage({ storage: window.localStorage }),
   transports: {
     [baseSepolia.id]: http(),
   },

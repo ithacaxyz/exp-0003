@@ -1,8 +1,16 @@
-import { useAccount, useDisconnect, useConnectors, useCallsStatus } from 'wagmi'
+import {
+  useAccount,
+  useDisconnect,
+  useConnectors,
+  useCallsStatus,
+  useSendCalls,
+  useWaitForCallsStatus,
+} from 'wagmi'
 import * as React from 'react'
+import { parseEther } from 'viem'
 import { Hooks } from 'porto/wagmi'
-import { type Errors, Hex, Json } from 'ox'
 import { useConnect } from 'porto/wagmi/Hooks'
+import { type Errors, type Hex, Json } from 'ox'
 import { useMutation } from '@tanstack/react-query'
 
 import {
@@ -352,54 +360,18 @@ function GrantPermissions() {
 
 function Fund() {
   const { address, chain } = useAccount()
-
-  const addFundsMutation = useMutation({
-    mutationFn: async (event: React.FormEvent<HTMLFormElement>) => {
-      event.preventDefault()
-      event.stopPropagation()
-
-      const result = await porto.provider.request({
-        method: 'wallet_addFunds',
-        params: [
-          {
-            address,
-            token: exp1Config.address,
-            value: Hex.fromString('100'),
-          },
-        ],
-      })
-
-      return result
-    },
-  })
-  const {
-    data: txHashData,
-    isLoading: isConfirming,
-    isSuccess: isConfirmed,
-  } = useCallsStatus({
-    id: addFundsMutation.data?.id as Hex.Hex,
-    query: {
-      enabled: !!addFundsMutation.data?.id,
-      refetchInterval: ({ state }) => {
-        if (state.data?.status === 'success') return false
-        return 1_000
-      },
-    },
-  })
-
-  const blockExplorer = chain?.blockExplorers?.default?.url
-  const transactionLink = (hash: string) =>
-    blockExplorer ? `${blockExplorer}/tx/${hash}` : hash
-
   const balance = useBalance()
 
-  const [transactions, setTransactions] = React.useState<Set<string>>(new Set())
-  React.useEffect(() => {
-    if (!txHashData?.id) return
-    const hash = txHashData.receipts?.at(0)?.transactionHash
-    if (!hash) return
-    setTransactions((prev) => new Set([...prev, hash]))
-  }, [txHashData?.id, txHashData?.receipts])
+  const sendCalls = useSendCalls()
+
+  const { isLoading: isConfirming, isSuccess: isConfirmed } =
+    useWaitForCallsStatus({
+      id: sendCalls.data?.id,
+    })
+
+  const explorerUrl = chain?.blockExplorers?.default?.url
+  const transactionLink = (hash: string) =>
+    explorerUrl ? `${explorerUrl}/tx/${hash}` : hash
 
   return (
     <div>
@@ -407,35 +379,48 @@ function Fund() {
         [client] Fund Wallet with EXP [balance:{' '}
         {`${Number(balance).toFixed(2)} EXP`}]
       </h3>
-      <form onSubmit={addFundsMutation.mutate}>
+      <form
+        onSubmit={(event) => {
+          event.preventDefault()
+          event.stopPropagation()
+          sendCalls.sendCalls({
+            calls: [
+              {
+                ...exp1Config,
+                args: [address!, parseEther('100')],
+                functionName: 'mint',
+                to: exp1Config.address,
+              },
+            ],
+          })
+        }}
+      >
         <button
           type="submit"
-          disabled={addFundsMutation.status === 'pending'}
+          disabled={sendCalls.status === 'pending'}
           style={{ marginBottom: '5px' }}
         >
-          {addFundsMutation.status === 'pending' ? 'Confirming…' : 'Fund'}
+          {sendCalls.status === 'pending' ? 'Confirming…' : 'Fund'}
         </button>
       </form>
       <ul style={{ listStyleType: 'none', padding: 0 }}>
-        {Array.from(transactions).map((tx) => (
-          <li key={tx}>
-            <a
-              target="_blank"
-              rel="noopener noreferrer"
-              href={transactionLink(tx)}
-            >
-              {tx}
-            </a>
-          </li>
-        ))}
+        {sendCalls.data?.id && (
+          <a
+            target="_blank"
+            rel="noopener noreferrer"
+            href={transactionLink(sendCalls.data!.id)}
+          >
+            {sendCalls.data?.id}
+          </a>
+        )}
       </ul>
       <p>{isConfirming && 'Waiting for confirmation...'}</p>
       <p>{isConfirmed && 'Transaction confirmed.'}</p>
-      {addFundsMutation.error && (
+      {sendCalls.error && (
         <div>
           Error:{' '}
-          {(addFundsMutation.error as Errors.BaseError).shortMessage ||
-            addFundsMutation.error.message}
+          {(sendCalls.error as Errors.BaseError).shortMessage ||
+            sendCalls.error.message}
         </div>
       )}
     </div>

@@ -1,0 +1,9 @@
+# Client App
+https://client.localhost {
+	reverse_proxy localhost:6901
+}
+
+# Server - Workers
+https://server.localhost {
+	reverse_proxy localhost:6900
+}

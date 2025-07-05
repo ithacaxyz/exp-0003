@@ -8,7 +8,7 @@
     "#wrangler.json": "./wrangler.json"
   },
   "scripts": {
-    "dev": "vite --port 6901 --open",
+    "dev": "vite --port 6901",
     "build": "vite build",
     "deploy": "vite build && wrangler --config='wrangler.json' deploy",
     "typecheck": "tsc --noEmit --project tsconfig.json"
@@ -19,6 +19,7 @@
     "porto": "catalog:",
     "react": "19.1.0",
     "react-dom": "19.1.0",
+    "viem": "^2.31.7",
     "wagmi": "catalog:"
   },
   "devDependencies": {

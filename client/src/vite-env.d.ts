@@ -9,7 +9,6 @@ interface Environment {
 
 interface ImportMetaEnv extends Environment {
   readonly VITE_SERVER_URL: string
-  readonly VITE_DIALOG_HOST: string
   readonly VITE_DIALOG_RENDERER: 'popup' | 'iframe'
   readonly VITE_ENVIRONMENT: 'development' | 'production'
 }
