@@ -51,6 +51,9 @@
       "performance": {
         "noDelete": "off"
       },
+      "correctness": {
+        "noUnusedVariables": "off"
+      },
       "style": {
         "useTemplate": "off",
         "noNonNullAssertion": "off",

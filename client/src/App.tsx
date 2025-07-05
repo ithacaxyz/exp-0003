@@ -670,7 +670,7 @@ function DemoScheduler() {
                     })}{' '}
                     | TYPE: {transaction.role}
                   </p>
-                  <span>🔗 TX HASH: </span>
+
                   <TxHash id={transaction.hash} />
                 </li>
               )
@@ -696,18 +696,32 @@ function TxHash({ id }: { id: string }) {
   })
 
   const hash = callStatus.data?.receipts?.at(0)?.transactionHash
-  if (!hash || callStatus.status === 'pending') return <span>pending...</span>
+  if (!hash || callStatus.status === 'pending')
+    return (
+      <>
+        <span>📦 TX ID: </span>
+        <span>
+          {StringFormatter.truncateHexString({
+            length: 12,
+            address: id,
+          })}
+        </span>
+      </>
+    )
 
   const blockExplorer = chain?.blockExplorers?.default?.url
   const transactionLink = (hash: string) =>
     blockExplorer ? `${blockExplorer}/tx/${hash}` : hash
   return (
-    <a target="_blank" rel="noreferrer" href={transactionLink(hash)}>
-      {StringFormatter.truncateHexString({
-        length: 12,
-        address: hash,
-      })}
-    </a>
+    <>
+      <span>🔗 TX HASH: </span>
+      <a target="_blank" rel="noreferrer" href={transactionLink(hash)}>
+        {StringFormatter.truncateHexString({
+          length: 12,
+          address: hash,
+        })}
+      </a>
+    </>
   )
 }
 
