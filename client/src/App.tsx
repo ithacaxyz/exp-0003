@@ -410,7 +410,10 @@ function Fund() {
             rel="noopener noreferrer"
             href={transactionLink(sendCalls.data!.id)}
           >
-            {sendCalls.data?.id}
+            {StringFormatter.truncateHexString({
+              address: sendCalls.data!.id,
+              length: 12,
+            })}
           </a>
         )}
       </ul>
@@ -545,7 +548,7 @@ function DemoScheduler() {
             name="count"
             type="number"
             placeholder="6"
-            defaultValue={6}
+            defaultValue={3}
             style={{ width: '40px', margin: '0 20px' }}
           />
 
