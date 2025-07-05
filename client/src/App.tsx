@@ -1,16 +1,9 @@
-import {
-  useAccount,
-  useSendCalls,
-  useDisconnect,
-  useConnectors,
-  useCallsStatus,
-} from 'wagmi'
+import { useAccount, useDisconnect, useConnectors, useCallsStatus } from 'wagmi'
 import * as React from 'react'
 import { Hooks } from 'porto/wagmi'
-import { useMutation } from '@tanstack/react-query'
+import { type Errors, Hex, Json } from 'ox'
 import { useConnect } from 'porto/wagmi/Hooks'
-
-import { type Errors, type Hex, Json, Value } from 'ox'
+import { useMutation } from '@tanstack/react-query'
 
 import {
   useDebug,
@@ -25,7 +18,6 @@ import { SERVER_URL, permissions } from '#constants.ts'
 
 export function App() {
   useNukeEverything()
-  const balance = useBalance()
 
   return (
     <main>
@@ -48,13 +40,7 @@ export function App() {
       <hr />
       <GrantPermissions />
       <hr />
-      {balance ? (
-        <Fund />
-      ) : (
-        <div style={{ opacity: 0.5 }}>
-          <Mint />
-        </div>
-      )}
+      <Fund />
       <hr />
       <DemoScheduler />
     </main>
@@ -109,6 +95,12 @@ function DebugLink() {
           await Promise.all(
             connectors.map((c) => disconnect.disconnectAsync({ connector: c })),
           )
+
+          // Clean up all localStorage entries to prevent reconnection
+          localStorage.removeItem('wagmi.store')
+          localStorage.removeItem('wagmi.recentConnectorId')
+          localStorage.removeItem('wagmi.walletConnect.requestedChains')
+          localStorage.removeItem('wagmi.reconnect')
         }}
         type="button"
         style={{
@@ -147,6 +139,12 @@ function Connect() {
     //   connect.contextconnectors.map((c) => c.disconnect().catch(() => {})),
     // )
     await disconnect.disconnectAsync()
+
+    // Clean up localStorage to prevent automatic reconnection
+    localStorage.removeItem('wagmi.store')
+    localStorage.removeItem('wagmi.recentConnectorId')
+    localStorage.removeItem('wagmi.walletConnect.requestedChains')
+    localStorage.removeItem('wagmi.reconnect')
   }
 
   const balance = useBalance()
@@ -216,7 +214,7 @@ function Connect() {
       <p>{connect.error?.message}</p>
       {address && <p>Account: {address}</p>}
 
-      <p>Balance: {balance ?? 0}</p>
+      <p>Balance: {`${Number(balance).toFixed(2)} EXP`}</p>
 
       {address && latestPermissions && (
         <details
@@ -354,15 +352,34 @@ function GrantPermissions() {
 
 function Fund() {
   const { address, chain } = useAccount()
-  const { data, error, isPending, sendCalls } = useSendCalls()
+
+  const addFundsMutation = useMutation({
+    mutationFn: async (event: React.FormEvent<HTMLFormElement>) => {
+      event.preventDefault()
+      event.stopPropagation()
+
+      const result = await porto.provider.request({
+        method: 'wallet_addFunds',
+        params: [
+          {
+            address,
+            token: exp1Config.address,
+            value: Hex.fromString('100'),
+          },
+        ],
+      })
+
+      return result
+    },
+  })
   const {
     data: txHashData,
     isLoading: isConfirming,
     isSuccess: isConfirmed,
   } = useCallsStatus({
-    id: data?.id as unknown as string,
+    id: addFundsMutation.data?.id as Hex.Hex,
     query: {
-      enabled: !!data?.id,
+      enabled: !!addFundsMutation.data?.id,
       refetchInterval: ({ state }) => {
         if (state.data?.status === 'success') return false
         return 1_000
@@ -386,113 +403,17 @@ function Fund() {
 
   return (
     <div>
-      <h3>[client] Get Funded to Mint [balance: {balance}]</h3>
-      <form
-        onSubmit={(event) => {
-          event.preventDefault()
-          sendCalls({
-            calls: [
-              {
-                functionName: 'mint',
-                abi: exp1Config.abi,
-                to: exp1Config.address,
-                args: [address!, Value.fromEther('100')],
-              },
-            ],
-          })
-        }}
-      >
+      <h3>
+        [client] Fund Wallet with EXP [balance:{' '}
+        {`${Number(balance).toFixed(2)} EXP`}]
+      </h3>
+      <form onSubmit={addFundsMutation.mutate}>
         <button
           type="submit"
-          disabled={isPending}
+          disabled={addFundsMutation.status === 'pending'}
           style={{ marginBottom: '5px' }}
         >
-          {isPending ? 'Confirming...' : 'Mint 100 EXP'}
-        </button>
-      </form>
-      <ul style={{ listStyleType: 'none', padding: 0 }}>
-        {Array.from(transactions).map((tx) => (
-          <li key={tx}>
-            <a
-              target="_blank"
-              rel="noopener noreferrer"
-              href={transactionLink(tx)}
-            >
-              {StringFormatter.truncateHexString({
-                length: 12,
-                address: tx,
-              })}
-            </a>
-          </li>
-        ))}
-      </ul>
-      <p>{isConfirming && 'Waiting for confirmation...'}</p>
-      <p>{isConfirmed && 'Transaction confirmed.'}</p>
-      {error && (
-        <div>
-          Error: {(error as Errors.BaseError).shortMessage || error.message}
-        </div>
-      )}
-    </div>
-  )
-}
-
-function Mint() {
-  const { address, chain } = useAccount()
-  const { data, error, isPending, sendCalls } = useSendCalls()
-  const {
-    data: txHashData,
-    isLoading: isConfirming,
-    isSuccess: isConfirmed,
-  } = useCallsStatus({
-    id: data?.id as unknown as string,
-    query: {
-      enabled: !!data?.id,
-      refetchInterval: ({ state }) => {
-        if (state.data?.status === 'success') return false
-        return 1_000
-      },
-    },
-  })
-
-  const blockExplorer = chain?.blockExplorers?.default?.url
-  const transactionLink = (hash: string) =>
-    blockExplorer ? `${blockExplorer}/tx/${hash}` : hash
-
-  const balance = useBalance()
-
-  const [transactions, setTransactions] = React.useState<Set<string>>(new Set())
-  React.useEffect(() => {
-    if (!txHashData?.id) return
-    const hash = txHashData.receipts?.at(0)?.transactionHash
-    if (!hash) return
-    setTransactions((prev) => new Set([...prev, hash]))
-  }, [txHashData?.id, txHashData?.receipts])
-
-  return (
-    <div>
-      <h3>[client] Mint EXP [balance: {balance}]</h3>
-      <form
-        onSubmit={(event) => {
-          event.preventDefault()
-          sendCalls({
-            calls: [
-              {
-                functionName: 'mint',
-                abi: exp1Config.abi,
-                to: exp1Config.address,
-                args: [address!, Value.fromEther('100')],
-              },
-            ],
-          })
-        }}
-      >
-        <button
-          type="submit"
-          disabled={isPending}
-          style={{ marginBottom: '5px' }}
-        >
-          {isPending ? 'Confirming...' : 'Mint 100 EXP'}
+          {addFundsMutation.status === 'pending' ? 'Confirming…' : 'Fund'}
         </button>
       </form>
       <ul style={{ listStyleType: 'none', padding: 0 }}>
@@ -510,9 +431,11 @@ function Mint() {
       </ul>
       <p>{isConfirming && 'Waiting for confirmation...'}</p>
       <p>{isConfirmed && 'Transaction confirmed.'}</p>
-      {error && (
+      {addFundsMutation.error && (
         <div>
-          Error: {(error as Errors.BaseError).shortMessage || error.message}
+          Error:{' '}
+          {(addFundsMutation.error as Errors.BaseError).shortMessage ||
+            addFundsMutation.error.message}
         </div>
       )}
     </div>
@@ -520,6 +443,7 @@ function Mint() {
 }
 
 function DemoScheduler() {
+  const balance = useBalance()
   const { address } = useAccount()
   const { data: debugData } = useDebug({ address, enabled: !!address })
 
@@ -604,6 +528,7 @@ function DemoScheduler() {
       <form
         onSubmit={async (event) => {
           event.preventDefault()
+          event.stopPropagation()
 
           const formData = new FormData(event.target as HTMLFormElement)
 
@@ -641,7 +566,18 @@ function DemoScheduler() {
 
           <button
             type="submit"
-            disabled={isPending}
+            title={
+              balance < 25
+                ? 'Insufficient balance'
+                : scheduleTransactionMutation.status !== 'idle'
+                  ? 'Already submitting'
+                  : ''
+            }
+            disabled={
+              isPending ||
+              scheduleTransactionMutation.status !== 'idle' ||
+              balance < 25
+            }
             style={{ width: '75px', textAlign: 'center' }}
           >
             {isPending ? 'Submitting…' : 'Submit'}

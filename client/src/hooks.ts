@@ -16,7 +16,7 @@ export function useBalance() {
     query: { enabled: !!address, refetchInterval: 2_000 },
   })
 
-  return `${Number(Value.format(balance ?? 0n, 18)).toFixed(2)} EXP`
+  return Number(Value.format(balance ?? 0n, 18))
 }
 
 export interface DebugData {

@@ -6,10 +6,18 @@ import { MutationCache, QueryCache, QueryClient } from '@tanstack/react-query'
 
 export const porto = Porto.create()
 
+const renderer =
+  import.meta.env.VITE_DIALOG_RENDERER === 'popup'
+    ? Dialog.popup()
+    : Dialog.iframe()
+
 export const wagmiConfig = createConfig({
   chains: [baseSepolia],
   connectors: [
-    portoConnector({ mode: Mode.dialog({ renderer: Dialog.popup() }) }),
+    portoConnector({
+      announceProvider: false,
+      mode: Mode.dialog({ renderer }),
+    }),
   ],
   multiInjectedProviderDiscovery: false,
   storage: createStorage({ storage: window.localStorage }),
@@ -28,7 +36,7 @@ export const queryClient: QueryClient = new QueryClient({
   defaultOptions: {
     queries: {
       gcTime: 1_000 * 60 * 60, // 1 hour
-      refetchOnReconnect: () => !queryClient.isMutating(),
+      refetchOnReconnect: false, // Disable automatic refetch on reconnect to prevent popups
     },
   },
   /**
